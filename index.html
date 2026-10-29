@@ -1,0 +1,1899 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Window Lights</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b1f3f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+@font-face{font-family:Nunito;font-style:normal;font-weight:200 1000;font-display:swap;src:url(assets/nunito-latin.woff2) format('woff2')}
+/* Палитра — одно место (§9): тёплый вечер. Canvas читает цвета через getComputedStyle. */
+:root{
+  --bg:#141833; --frame:#1b1f3f; --panel:rgba(32,30,58,.95); --ink:#fff6e8; --muted:#c9bfd8;
+  --accent:#ffbf5e; --accent-ink:#3a2210; --danger:#ff6f7d; --line:rgba(255,255,255,.14);
+  --card:#fffaf0; --card-red:#cf3a3f; --card-black:#1f2547; --glass:#1c2849; --glass2:#2c3d6b;
+  --amber:#ffc66d; --roof:#c4613c; --roof-dark:#8f3f25; --stone:#f3e6cf; --stone-dark:#cdb796;
+  --frame-w:430px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.3 Nunito, system-ui, sans-serif;
+  overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#frame{position:relative;width:min(100vw,var(--frame-w));height:100dvh;height:100svh;margin:0 auto;background:var(--frame);overflow:hidden;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#game{position:absolute;inset:0;touch-action:none}
+#game canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+header{position:absolute;left:0;right:0;top:env(safe-area-inset-top);display:flex;align-items:center;gap:8px;padding:8px 10px;pointer-events:none;z-index:3}
+header .title{flex:1;text-align:center;line-height:1.05;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+header .title b{display:block;font-size:17px;font-weight:900;letter-spacing:.2px}
+header .title span{font-size:12px;color:var(--muted);font-weight:700}
+.hbtn{pointer-events:auto;width:40px;height:40px;border:0;border-radius:14px;background:rgba(20,22,48,.55);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.hbtn svg{width:22px;height:22px}
+.pill{pointer-events:auto;height:32px;border-radius:16px;background:rgba(20,22,48,.55);display:flex;align-items:center;gap:6px;padding:0 10px 0 6px;font-weight:900;font-size:15px}
+.coin{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe39a,#f2b233 60%,#c98516);box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
+#overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:18px;z-index:5;background:rgba(10,10,30,.45)}
+#overlay.show{display:flex}
+#overlay.clear{background:transparent;pointer-events:none}
+#overlay.clear .card{pointer-events:auto}
+#overlay.bottom{align-items:flex-end;padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:18px 18px 16px;max-width:360px;width:100%;text-align:center;
+  box-shadow:0 18px 40px rgba(0,0,0,.35);animation:pop .22s ease-out} /* стартует с видимого состояния (§9) */
+@keyframes pop{from{transform:scale(.95)}to{transform:scale(1)}}
+.card h2{margin:2px 0 6px;font-size:23px;font-weight:900}
+.card p{color:var(--muted);margin:0 0 14px;font-size:15px}
+.card .art{width:100%;aspect-ratio:3/2;border-radius:16px;background:#2a2550 center/cover no-repeat;margin:0 0 12px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.08)}
+.card .sprite{height:96px;margin:0 auto 8px;display:block}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+button{font:inherit}
+.btn{border:0;border-radius:16px;padding:12px 18px;font-weight:900;font-size:17px;cursor:pointer;color:var(--ink);background:rgba(255,255,255,.12)}
+.btn.primary{background:linear-gradient(#ffd27f,#f4a83c);color:var(--accent-ink);box-shadow:0 3px 0 #b8701f}
+.btn.wide{width:100%}
+.people{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:4px 0 14px}
+.street-card .people{display:flex;overflow-x:auto;gap:10px;padding:4px 2px 6px;scrollbar-width:none;touch-action:pan-x}
+.street-card .people::-webkit-scrollbar{display:none}
+.street-card .person{flex:0 0 66px}
+.person{position:relative;border:0;background:none;padding:0;cursor:pointer;color:var(--ink)}
+.person i{display:block;width:100%;aspect-ratio:1;border-radius:50%;background:#2a2550 center 30%/170% no-repeat;box-shadow:0 0 0 3px rgba(255,198,109,.85)}
+.person.new i{box-shadow:0 0 0 3px #ffe08a,0 0 14px #ffc66d}
+.person small{display:block;font-size:11px;font-weight:800;margin-top:4px;line-height:1.1;color:var(--muted)}
+.person .env{position:absolute;right:-2px;top:-2px;width:22px;height:16px;border-radius:3px;background:#fff3d8;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.person .env:after{content:'';position:absolute;left:3px;right:3px;top:2px;height:8px;border-left:8px solid transparent;border-right:8px solid transparent;border-top:6px solid #e0b98a;box-sizing:border-box}
+.person.empty i{background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 2px rgba(255,255,255,.12)}
+.letter{background:#fff7e6;color:#3b2a1d;border-radius:14px;padding:14px 16px;text-align:left;font-size:16px;line-height:1.35;margin:0 0 14px;
+  box-shadow:inset 0 0 0 1px rgba(120,80,40,.15)}
+.letter b{display:block;margin-top:8px;text-align:right;font-weight:900}
+.street-card{max-width:400px;padding:14px 14px 12px}
+.street-card h2{font-size:20px}
+.tag{display:inline-block;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
+.stats{display:flex;justify-content:center;gap:16px;margin:0 0 12px;font-weight:900}
+#toast{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%);background:rgba(20,22,48,.88);padding:8px 14px;border-radius:12px;
+  pointer-events:none;opacity:.98;transition:opacity .25s;z-index:4;font-weight:800;white-space:nowrap}
+#toast.hide{opacity:0}
+@media (prefers-reduced-motion: reduce){ .card{animation:none} #toast{transition:none} }
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="game"><canvas id="cv"></canvas></div>
+  <header>
+    <button class="hbtn" id="btn-street" aria-label="street"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></button>
+    <div class="title"><b id="hud-title">Window Lights</b><span id="hud-sub"></span></div>
+    <div class="pill"><i class="coin"></i><span id="hud-coins">0</span></div>
+    <button class="hbtn" id="btn-mute" aria-label="sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path id="mute-wave" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/><path id="mute-x" d="M16 9l5 6M21 9l-5 6" style="display:none"/></svg></button>
+  </header>
+  <div id="overlay"><div class="card" id="card"></div></div>
+  <div id="toast" class="hide"></div>
+</div>
+<script>
+'use strict';
+/* ЯДРО */
+// ---------------------------------------------------------------------------
+// «Свет в окнах» — казуальный TriPeaks на фасаде. Обычные карты A..K, ход — карта на ранг выше или ниже
+// текущей, K и A соседи. Раскладка — фасад: карта сидит в окне; окно загорается (карта открывается), когда
+// всё, что прямо под ним, снято. Снял карту — в окне жилец, сценка крупно. Колода — официант с картами,
+// добор рвёт серию. Под домами лавки: снятые карты дома «питают» свою лавку — пекарня даёт +2 карты,
+// цветочная — букет (Wild), кафе — монеты. «Ещё чашка кофе» — +5 карт на почти-победе.
+// Фичи срезом по уровням: кот, трамвай 28, гирлянда, бельевая верёвка, мико, просьба жильца.
+// Ядро исполняют и игра, и sim.mjs/test.mjs (core-load.mjs) — единый источник правил.
+// ---------------------------------------------------------------------------
+const CFG = {
+  // --- лавки (числа как в sims/p3 «колонки»: порог 4, капля 1, на 3-й карте серии 2, с 5-й 3) ---
+  SHOP_NEED: 4,           // капель света до открытия лавки
+  BAKERY_CARDS: 2,        // пекарня открылась: столько карт в колоду
+  CAFE_COINS: 15,         // кафе открылось: монеты
+  // --- «ещё чашка кофе» ---
+  COFFEE_CARDS: 5,        // карт в чашке
+  COFFEE_FREE: 1,         // бесплатных чашек за уровень
+  COFFEE_NEAR: 6,         // официант предлагает кофе, только если в окнах осталось не больше стольких карт (почти-победа)
+  COFFEE_PRICE: 40,       // цена платной чашки (монеты кафе и награды за уровни)
+  // --- фичи ---
+  GARLAND_CARDS: 2,       // гирлянда зажглась (все её окна сняты одной серией): карт в колоду
+  REQUEST_CARDS: 2,       // просьба жильца выполнена: подарок, карт в колоду
+  TRAM_EVERY: 5,          // трамвай 28 подходит к остановке каждые столько ходов
+  TRAM_STAY: 2,           // и стоит столько ходов; пассажир на подножке — карта, которую можно взять
+  // --- награды ---
+  WIN_COINS: 20,          // монет за вечер
+  DECK_COIN: 2,           // монет за каждую несыгранную карту колоды
+  // --- генератор раздач ---
+  GEN_TRIES: 36,          // сколько сидов перебирает генератор
+  GEN_RUNS: 90,           // прогонов бота «тапаю не думая» на оценку раздачи
+  // --- оболочка: тайминги, мс (сим их не читает) ---
+  FLY_MS: 380,            // карта летит из окна на столик
+  FLIP_MS: 320,           // окно загорается: ставни раскрываются, карта переворачивается
+  SCENE_MS: 1500,         // сценка жильца крупно (не блокирует ввод)
+  SCENE_FULL_MS: 2300,    // жилец въехал: вся сценка
+  SHOP_MS: 1500,          // лавка открылась
+  DRAW_MS: 420,           // официант кладёт карту
+  WRONG_MS: 360,          // неверный тап: окно вздрагивает
+  CAT_MS: 700,            // прыжок кота
+  TRAM_MS: 900,           // трамвай подъезжает/уезжает
+  WIN_DELAY_MS: 1700,     // от последней карты до экрана «дом светится»
+  LOSE_DELAY_MS: 800,     // от тупика до предложения кофе / проигрыша
+  HINT_IDLE_MS: 9000,     // столько без касаний — мягко подсветить подходящее
+  TUT_HINT_IDLE_MS: 3500, // то же на уроке
+  TOAST_MS: 1600,
+};
+const WILD = -1;          // текущая — букет: подходит любая карта
+const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const SUITS = ['S', 'H', 'D', 'C'];   // масть не важна для правил; ♥♦ красные
+const rankOf = (id) => id % 13;
+const suitOf = (id) => Math.floor(id / 13) % 4;
+const card = (r, s) => RANKS.indexOf(r) + 13 * SUITS.indexOf(s);   // card('7','H') — для ручных раздач
+
+// Детерминированный генератор случайных чисел (PROTO-BASE §5). Math.random() не используется.
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shuffle(a, rnd){
+  for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+
+// Раскладки — картинкой. Строка — этаж (верхняя — крыша), символ — полуклетка по горизонтали.
+// Буква — окно квартиры (квартира = буква), '#' — ступень лестницы. Окно закрыто тем, что стоит прямо под ним
+// или наискосок под ним (r+1, c−1 / c / c+1): в домах-«пирамидах» окно стоит между двумя нижними, в узких
+// домах — над одним. houses — из каких квартир состоит каждый дом (для стен и лавок).
+// line — бельевая верёвка: n карт на прищепках, берётся только крайняя справа, верёвка подвозит следующую.
+const LAYOUTS = {
+  cottage: { rows: [   // урок: домик из 6 окон
+    '  m  ',
+    ' g c ',
+    'g g c'], houses: ['gcm'] },
+  twin: { rows: [      // два домика
+    '  a     d  ',
+    ' a a   d d ',
+    'b b b d d d'], houses: ['ab', 'd'] },
+  shoprow: { rows: [   // лавочный ряд: низкий и широкий, три лавки
+    '   a   b   c   ',
+    '  a a b b c c  ',
+    ' a a a b b c c ',
+    'a a a b b b c c'], houses: ['a', 'b', 'c'] },
+  narrow: { rows: [    // узкие дома в азулежу (Лиссабон): окна в столбик, фронтон над двумя
+    '     b   c     ',
+    ' a  b b c c  d ',
+    'a a b b c c d d',
+    'a a b b c c d d',
+    '    b b c c    '], houses: ['a', 'b', 'c', 'd'] },
+  alfama: { rows: [    // Алфама: три дома, средний — узкая башенка; внизу трамвай
+    '       b       ',
+    '   a   b   c   ',
+    '  a a b b c c  ',
+    ' a a b b b c c ',
+    'a a a b b c c c'], houses: ['a', 'b', 'c'] },
+  hill: { rows: [      // Санта-Тереза на холме: дома растут вправо
+    '           c c ',
+    '       b  c c c',
+    '  a   b b c c c',
+    ' a a  b b c c c',
+    'a a a b b c c c'], houses: ['a', 'b', 'c'] },
+  courtyard: { rows: [ // двор-колодец: два крыла и низкий дом в глубине, над двором верёвка
+    '               ',
+    'a a         c c',
+    'a a    b    c c',
+    'a a   b b   c c',
+    'a a  b b b  c c'], houses: ['a', 'b', 'c'], line: { n: 5, show: 4 } },
+  santa: { rows: [     // три дома-фронтона над общими этажами
+    '   a   b   c   ',
+    '  a a b b c c  ',
+    ' a a a b b c c ',
+    'a a a b b b c c'], houses: ['a', 'b', 'c'] },
+  pair: { rows: [      // два дома с мансардами, между ними башенка, внизу аркада
+    '   a       b   ',
+    '  a a  m  b b  ',
+    ' c c c m d d d ',
+    'c c c c d d d d'], houses: ['acm', 'bd'] },
+  selaron: { rows: [   // лестница Селарона (Рио): ступени посередине, дома по бокам
+    '  a    #    c  ',
+    ' a a   #   c c ',
+    'a a a  #  c c c',
+    ' b b b # d d d ',
+    'b b b  #  d d d'], houses: ['ab', 'cd'] },
+};
+
+// Уровни. city — глава; deck — карт у официанта; band — доля побед бота «тапаю не думая» (с кофе),
+// в которую генератор подбирает раздачу; shops — лавка под каждым домом (null — закрыта на ремонт);
+// apts — какой жилец живёт в квартире; фичи: cat/garlands/tram/mico/request (позиции — [этаж, полуклетка]).
+// fixed — раздача урока задана руками. Попытка = новая раздача (заучить нельзя).
+const LEVELS = [
+  { n: 1, city: 'lisbon', name: 'The little house', layout: 'cottage', deck: 4, tut: true,
+    apts: { g: 'granny', c: 'couple', m: 'atticcat' }, shops: [null],
+    fixed: { tab: [card('7', 'S'), card('5', 'C'), card('6', 'D'), card('8', 'H'), card('4', 'S'), card('9', 'C')],
+             start: card('7', 'H'), deck: [card('5', 'D'), card('Q', 'D'), card('3', 'H'), card('10', 'S')] } },
+  { n: 2, city: 'lisbon', name: 'Two neighbours', layout: 'twin', deck: 8, band: [0.92, 1.0],
+    apts: { a: 'widower', b: 'nurse', d: 'fado' }, shops: ['bakery', null], intro: 'bakery' },
+  { n: 3, city: 'lisbon', name: 'The shop row', layout: 'shoprow', deck: 16, band: [0.88, 0.98],
+    apts: { a: 'ballet', b: 'student', c: 'seamstress' }, shops: ['bakery', 'florist', 'cafe'], intro: 'florist' },
+  { n: 4, city: 'lisbon', name: 'Tiled houses', layout: 'narrow', deck: 19, band: [0.84, 0.95],
+    apts: { a: 'bedtime', b: 'sailor', c: 'youngdad', d: 'writer' }, shops: ['florist', 'bakery', 'cafe', 'bakery'], intro: 'cat',
+    cat: [4, 4] },
+  { n: 5, city: 'lisbon', name: 'Tram 28', layout: 'alfama', deck: 17, band: [0.8, 0.92],
+    apts: { a: 'cardplayers', b: 'trumpet', c: 'yoga' }, shops: ['bakery', 'cafe', 'florist'], intro: 'tram',
+    cat: [3, 5], tram: true },
+  { n: 6, city: 'rio', name: 'Up the hill', layout: 'hill', deck: 19, band: [0.76, 0.9],
+    apts: { a: 'cavaquinho', b: 'carnival', c: 'painter' }, shops: ['bakery', 'florist', 'cafe'], intro: 'garland',
+    garlands: [[[4, 6], [4, 8]]] },
+  { n: 7, city: 'rio', name: 'The courtyard', layout: 'courtyard', deck: 19, band: [0.72, 0.88],
+    apts: { a: 'feijoada', b: 'forro', c: 'capoeira' }, shops: ['cafe', 'bakery', 'florist'], intro: 'line',
+    garlands: [[[4, 5], [4, 7], [4, 9]]] },
+  { n: 8, city: 'rio', name: 'Three sisters', layout: 'santa', deck: 17, band: [0.68, 0.85],
+    apts: { a: 'braids', b: 'football', c: 'singer' }, shops: ['florist', 'cafe', 'bakery'], intro: 'mico',
+    mico: [1, 4], cat: [2, 9] },
+  { n: 9, city: 'rio', name: 'A neighbour asks', layout: 'pair', deck: 16, band: [0.66, 0.82],
+    apts: { a: 'orchids', b: 'brigadeiro', m: 'homework', c: 'bicycle', d: 'acai' },
+    shops: ['bakery', 'florist'], intro: 'request', request: 'b', garlands: [[[2, 1], [2, 3], [2, 5]]] },
+  { n: 10, city: 'rio', name: 'Selarón steps', layout: 'selaron', deck: 20, band: [0.62, 0.8],
+    apts: { a: 'drummer', b: 'newspaper', c: 'nursery', d: 'flags' }, shops: ['cafe', 'florist'], intro: 'festa',
+    request: 'c', garlands: [[[4, 0], [4, 2], [4, 4]]], mico: [1, 1] },
+];
+
+// Разбор раскладки: slots [{r, c, apt, house, kind}], coveredBy[k] — кто закрывает k, covers[k] — кого закрывает k.
+const LAY_CACHE = {};
+function parseLayout(name){
+  if (LAY_CACHE[name]) return LAY_CACHE[name];
+  const L = LAYOUTS[name], slots = [];
+  const houseOf = (ch) => L.houses.findIndex(h => h.includes(ch));
+  L.rows.forEach((row, r) => { for (let c = 0; c < row.length; c++){
+    const ch = row[c];
+    if (ch === '#') slots.push({ r, c, apt: null, house: -1, kind: 'step' });
+    else if (ch >= 'a' && ch <= 'z') slots.push({ r, c, apt: ch, house: houseOf(ch), kind: 'win' });
+  } });
+  const at = new Map(slots.map((s, i) => [s.r + ':' + s.c, i]));
+  const coveredBy = slots.map(s => [-1, 0, 1].map(d => at.get((s.r + 1) + ':' + (s.c + d))).filter(x => x !== undefined));
+  const lineFirst = slots.length;
+  if (L.line) for (let i = 0; i < L.line.n; i++){             // верёвка: i-я карта закрыта (i−1)-й, крайняя открыта
+    slots.push({ r: -1, c: i, apt: null, house: -1, kind: 'line' });
+    coveredBy.push(i ? [lineFirst + i - 1] : []);
+  }
+  const covers = slots.map(() => []);
+  coveredBy.forEach((cb, i) => cb.forEach(j => covers[j].push(i)));
+  const apts = {};
+  slots.forEach((s, i) => { if (s.apt) (apts[s.apt] = apts[s.apt] || []).push(i); });
+  const cols = Math.max(...L.rows.map(r => r.length));
+  return (LAY_CACHE[name] = { name, slots, coveredBy, covers, n: slots.length, rows: L.rows.length, cols, houses: L.houses,
+    apts, line: L.line ? { first: lineFirst, n: L.line.n, show: L.line.show } : null });
+}
+function slotAt(lay, r, c){ return lay.slots.findIndex(s => s.r === r && s.c === c); }
+
+// --- раздача: настоящая колода из 52 карт (запас — следующая колода по тому же сиду) ---
+function dealFromSeed(L, seed){
+  const lay = parseLayout(L.layout), rnd = mulberry32(seed);
+  const pack = shuffle([...Array(52).keys()], rnd);
+  return { seed, tab: pack.slice(0, lay.n), start: pack[lay.n], deck: pack.slice(lay.n + 1, lay.n + 1 + L.deck),
+    reserve: pack.slice(lay.n + 1 + L.deck), rate: NaN };
+}
+function dealFor(L, seed){ return fixGarlands(L, dealFromSeed(L, seed), mulberry32(seed ^ 0x9a71)); }
+// Окна гирлянды получают ранги подряд (r, r+1, r+2): заметил — можешь сыграть их одной серией.
+// Нужные карты меняются местами с запасом, так что раскладка и колода остаются честной колодой.
+function fixGarlands(L, d, rnd){
+  if (!L.garlands) return d;
+  const lay = parseLayout(L.layout);
+  for (const g of L.garlands){
+    const r0 = Math.floor(rnd() * 13), dir = rnd() < 0.5 ? 1 : -1;
+    g.forEach((rc, i) => {
+      const k = slotAt(lay, rc[0], rc[1]), want = ((r0 + dir * i) % 13 + 13) % 13;
+      if (k < 0 || rankOf(d.tab[k]) === want) return;
+      // нужная карта — из запаса, иначе из колоды, иначе из другого окна (не гирлянды)
+      const gs = g.map(q => slotAt(lay, q[0], q[1]));
+      for (const pool of [d.reserve, d.deck, d.tab]){
+        const j = pool.findIndex((c, idx) => rankOf(c) === want && !(pool === d.tab && gs.includes(idx)));
+        if (j < 0) continue;
+        const t = d.tab[k]; d.tab[k] = pool[j]; pool[j] = t;
+        break;
+      }
+    });
+  }
+  return d;
+}
+function dealSeed(L, attempt, t){ return L.n * 7919 + attempt * 104729 + t * 31 + 1; }
+const DEALS = new Map();
+function levelDeal(li, attempt){
+  attempt = attempt || 0;
+  const key = li + ':' + attempt;
+  if (DEALS.has(key)) return DEALS.get(key);
+  const L = LEVELS[li];
+  let deal = null;
+  if (L.fixed){
+    const used = new Set([...L.fixed.tab, L.fixed.start, ...L.fixed.deck]);
+    deal = { seed: L.n * 7919, tab: L.fixed.tab.slice(), start: L.fixed.start, deck: L.fixed.deck.slice(),
+      reserve: shuffle([...Array(52).keys()].filter(c => !used.has(c)), mulberry32(L.n)), rate: NaN };
+  } else {
+    let bestDist = Infinity;
+    for (let t = 0; t < CFG.GEN_TRIES; t++){
+      const d = dealFor(L, dealSeed(L, attempt, t));
+      const s0 = stateFromDeal(li, attempt, d);
+      if (!matches(s0).length) continue;                 // первый тап вечера — окно, а не колода
+      d.rate = rateDeal(s0, d.seed);
+      const dist = d.rate < L.band[0] ? L.band[0] - d.rate : d.rate > L.band[1] ? d.rate - L.band[1] : 0;
+      if (dist < bestDist){ deal = d; bestDist = dist; if (!dist) break; }
+    }
+  }
+  DEALS.set(key, deal);
+  return deal;
+}
+// Доля побед бота «тапаю не думая» (с кофе) на раздаче — мера сложности для генератора.
+function rateDeal(s0, seed){
+  const rnd = mulberry32(seed ^ 0x5eed); let w = 0;
+  for (let i = 0; i < CFG.GEN_RUNS; i++){ const s = cloneState(s0); playOut(s, 'random', rnd, {}); if (isWin(s)) w++; }
+  return w / CFG.GEN_RUNS;
+}
+
+// --- состояние ---
+function stateFromDeal(li, attempt, deal){
+  const L = LEVELS[li], lay = parseLayout(L.layout);
+  const pos = (rc) => rc ? slotAt(lay, rc[0], rc[1]) : -1;
+  const s = {
+    li, attempt: attempt || 0, seed: deal.seed, lay, tut: !!L.tut,
+    tab: deal.tab.slice(), present: new Array(lay.n).fill(true), cover: lay.coveredBy.map(c => c.length), left: lay.n,
+    deck: deal.deck.slice(), deckTotal: deal.deck.length, reserve: deal.reserve.slice(), extra: 0,
+    cur: deal.start, streak: 0, sid: 0, best: 0, wild: 0, coins: 0, coffee: 0,
+    shops: lay.houses.map((h, i) => ({ type: (L.shops || [])[i] || null, fill: 0, open: false })),
+    cat: L.cat ? { k: pos(L.cat), table: false } : null,
+    garlands: (L.garlands || []).map(g => ({ slots: g.map(pos), got: 0, sid: -1, state: 'idle' })),
+    tram: L.tram ? { card: -1, until: 0, next: CFG.TRAM_EVERY, came: 0, taken: 0 } : null,
+    mico: L.mico ? pos(L.mico) : -2,                         // −2 — мико нет на уровне, −1 — ушёл
+    req: L.request ? { apt: L.request, slots: lay.apts[L.request].slice(), state: 'live' } : null,
+    plays: 0, draws: 0, moves: 0, wilds: 0, ev: [],
+  };
+  return s;
+}
+function createState(li, attempt){ return stateFromDeal(li, attempt || 0, levelDeal(li, attempt || 0)); }
+function cloneState(s){
+  return { ...s, tab: s.tab.slice(), present: s.present.slice(), cover: s.cover.slice(), deck: s.deck.slice(), reserve: s.reserve.slice(),
+    shops: s.shops.map(o => ({ ...o })), cat: s.cat ? { ...s.cat } : null, garlands: s.garlands.map(g => ({ ...g, slots: g.slots.slice() })),
+    tram: s.tram ? { ...s.tram } : null, req: s.req ? { ...s.req, slots: s.req.slots.slice() } : null, ev: [] };
+}
+// Новая карта из запаса (бонусы лавок, кофе, трамвай): запас кончился — следующая колода по сиду.
+function takeReserve(s){
+  if (!s.reserve.length) s.reserve = shuffle([...Array(52).keys()], mulberry32(s.seed * 31 + 7 + s.extra));
+  s.extra++;
+  return s.reserve.shift();
+}
+function isOpen(s, k){ return s.present[k] && s.cover[k] === 0; }
+function exposed(s){ const e = []; for (let k = 0; k < s.lay.n; k++) if (isOpen(s, k)) e.push(k); return e; }
+function fitsRank(cur, r){ return cur === WILD || Math.abs(rankOf(cur) - r) === 1 || Math.abs(rankOf(cur) - r) === 12; }
+function fits(s, id){ return fitsRank(s.cur, rankOf(id)); }
+function matches(s){ const m = []; for (let k = 0; k < s.lay.n; k++) if (isOpen(s, k) && fits(s, s.tab[k])) m.push(k); return m; }
+function tramOpen(s){ return !!(s.tram && s.tram.card >= 0 && s.moves < s.tram.until); }
+// Видимые без вскрытия: открытые окна, карты на верёвке, окно под мико.
+function known(s, k){ return isOpen(s, k) || (s.present[k] && s.lay.slots[k].kind === 'line') || k === s.mico; }
+function coffeeAvailable(s){
+  return s.left > 0 && !s.deck.length && !matches(s).length && !s.wild && !(tramOpen(s) && fits(s, s.tram.card)) &&
+    (s.tut || s.left <= CFG.COFFEE_NEAR);
+}
+function coffeeFree(s){ return s.tut || s.coffee < CFG.COFFEE_FREE; }
+function legalMoves(s){
+  const m = matches(s);
+  if (tramOpen(s) && fits(s, s.tram.card)) m.push('tram');
+  if (s.wild) m.push('wild');
+  if (s.deck.length) m.push('draw');
+  if (coffeeAvailable(s)) m.push('coffee');
+  return m;
+}
+function isWin(s){ return s.left === 0; }
+function isStuck(s){ return s.left > 0 && !s.deck.length && !matches(s).length && !s.wild && !(tramOpen(s) && fits(s, s.tram.card)); }
+function isLose(s){ return isStuck(s) && !coffeeAvailable(s); }
+const dropFor = (streak) => 1 + (streak >= 3 ? 1 : 0) + (streak >= 5 ? 1 : 0);
+function aptLit(s, apt){ return s.lay.apts[apt].every(k => !s.present[k] || s.cover[k] === 0); }
+
+// Ход (мутирует s): номер окна | 'draw' | 'wild' | 'coffee' | 'tram'. В s.ev — события хода для оболочки и журнала.
+function step(s, m){
+  s.ev = [];
+  if (m === 'wild'){
+    if (!s.wild) return s;
+    s.wild--; s.wilds++; s.cur = WILD; s.ev.push({ t: 'wild' });
+    return s;
+  }
+  if (m === 'coffee'){
+    if (!coffeeAvailable(s)) return s;
+    const paid = !coffeeFree(s);
+    s.coffee++;
+    for (let i = 0; i < CFG.COFFEE_CARDS; i++) s.deck.push(takeReserve(s));
+    s.deckTotal += CFG.COFFEE_CARDS;
+    s.ev.push({ t: 'coffee', n: CFG.COFFEE_CARDS, paid });
+    return s;
+  }
+  if (m === 'draw'){
+    if (!s.deck.length) return s;
+    const from = s.cur, id = s.deck.shift();
+    s.cur = id; s.draws++; s.moves++;
+    if (s.cat && s.cat.table){                               // кот на столике: добор не рвёт серию
+      s.cat.table = false;
+      const dark = []; for (let k = 0; k < s.lay.n; k++) if (s.present[k] && s.cover[k] > 0 && s.lay.slots[k].kind === 'win') dark.push(k);
+      s.cat.k = dark.length ? dark[Math.floor(mulberry32(s.seed * 13 + s.draws)() * dark.length)] : -1;
+      s.ev.push({ t: 'draw', id, from, broke: 0, cat: true }, { t: 'cat.save', k: s.cat.k });
+    } else {
+      s.ev.push({ t: 'draw', id, from, broke: s.streak });
+      if (s.streak) breakStreak(s);
+    }
+    if (s.mico >= 0){                                        // мико перепрыгивает на другое тёмное окно
+      const dark = []; for (let k = 0; k < s.lay.n; k++) if (s.present[k] && s.cover[k] > 0 && k !== s.mico && s.lay.slots[k].kind === 'win') dark.push(k);
+      const from = s.mico; s.mico = dark.length ? dark[Math.floor(mulberry32(s.seed * 17 + s.draws)() * dark.length)] : -1;
+      s.ev.push({ t: 'mico', from, k: s.mico });
+    }
+    if (s.req && s.req.state === 'live' && !s.deck.length){ s.req.state = 'missed'; s.ev.push({ t: 'req.miss' }); }
+    afterMove(s);
+    return s;
+  }
+  if (m === 'tram'){
+    if (!tramOpen(s) || !fits(s, s.tram.card)) { s.ev.push({ t: 'miss', k: 'tram' }); return s; }
+    const from = s.cur, id = s.tram.card;
+    s.tram.card = -1; s.tram.taken++;
+    s.cur = id; s.streak++; s.moves++; s.plays++;
+    if (s.streak > s.best) s.best = s.streak;
+    s.ev.push({ t: 'tram.take', id, from, streak: s.streak });
+    afterMove(s);
+    return s;
+  }
+  const k = m;
+  if (!(k >= 0 && k < s.lay.n) || !isOpen(s, k) || !fits(s, s.tab[k])){ s.ev.push({ t: 'miss', k }); return s; }
+  const from = s.cur, id = s.tab[k], sl = s.lay.slots[k];
+  s.present[k] = false; s.left--;
+  s.streak++; s.plays++; s.moves++;
+  if (s.streak > s.best) s.best = s.streak;
+  s.ev.push({ t: 'play', k, id, from, wild: from === WILD, streak: s.streak });
+  for (const x of s.lay.covers[k]){ s.cover[x]--; if (s.cover[x] === 0 && s.present[x]) s.ev.push({ t: 'reveal', k: x }); }
+  s.cur = id;
+  if (sl.apt && s.lay.apts[sl.apt].every(q => !s.present[q])) s.ev.push({ t: 'apt', apt: sl.apt });
+  if (s.cat && s.cat.k === k){ s.cat.k = -1; s.cat.table = true; s.ev.push({ t: 'cat.jump', k }); }
+  if (k === s.mico){ s.mico = -1; s.ev.push({ t: 'mico.gone', k }); }
+  // лавка дома: снятая карта капает светом
+  const shop = sl.house >= 0 ? s.shops[sl.house] : null;
+  if (shop && shop.type && !shop.open){
+    shop.fill = Math.min(CFG.SHOP_NEED, shop.fill + dropFor(s.streak));
+    s.ev.push({ t: 'shop.drop', h: sl.house, fill: shop.fill });
+    if (shop.fill >= CFG.SHOP_NEED){
+      shop.open = true;
+      if (shop.type === 'bakery'){ for (let i = 0; i < CFG.BAKERY_CARDS; i++) s.deck.push(takeReserve(s)); s.deckTotal += CFG.BAKERY_CARDS; }
+      else if (shop.type === 'florist') s.wild++;
+      else s.coins += CFG.CAFE_COINS;
+      s.ev.push({ t: 'shop.open', h: sl.house, type: shop.type });
+    }
+  }
+  // гирлянды: все окна гирлянды — в одной серии
+  s.garlands.forEach((g, gi) => {
+    if (g.state === 'lit' || g.state === 'broken' || !g.slots.includes(k)) return;
+    if (g.state === 'idle'){ g.state = 'live'; g.sid = s.sid; g.got = 1; }
+    else g.got++;
+    s.ev.push({ t: 'garland.bulb', g: gi, got: g.got, of: g.slots.length });
+    if (g.got === g.slots.length){
+      g.state = 'lit';
+      for (let i = 0; i < CFG.GARLAND_CARDS; i++) s.deck.push(takeReserve(s));
+      s.deckTotal += CFG.GARLAND_CARDS;
+      s.ev.push({ t: 'garland.lit', g: gi });
+    }
+  });
+  afterMove(s);
+  if (s.left === 0) s.ev.push({ t: 'win' });
+  return s;
+}
+function breakStreak(s){
+  s.streak = 0; s.sid++;
+  s.garlands.forEach((g, gi) => { if (g.state === 'live'){ g.state = 'broken'; s.ev.push({ t: 'garland.break', g: gi }); } });
+}
+// После любого хода: просьба жильца и трамвай.
+function afterMove(s){
+  if (s.req && s.req.state === 'live' && aptLit(s, s.req.apt)){
+    s.req.state = 'done';
+    for (let i = 0; i < CFG.REQUEST_CARDS; i++) s.deck.push(takeReserve(s));
+    s.deckTotal += CFG.REQUEST_CARDS;
+    s.ev.push({ t: 'req.done', apt: s.req.apt });
+  }
+  if (s.tram && s.left > 0){
+    if (s.tram.card >= 0 && s.moves >= s.tram.until){ s.tram.card = -1; s.ev.push({ t: 'tram.leave' }); }
+    if (s.tram.card < 0 && s.moves >= s.tram.next){
+      s.tram.card = takeReserve(s); s.tram.until = s.moves + CFG.TRAM_STAY; s.tram.next = s.moves + CFG.TRAM_EVERY; s.tram.came++;
+      s.ev.push({ t: 'tram.come', id: s.tram.card });
+    }
+  }
+}
+function applyMove(s, m){ return step(cloneState(s), m); }
+
+// --- боты (PROTO-BASE §6) ---
+// random — «тапаю не думая»: любая подходящая карта (или трамвай), колода — только когда хода нет;
+// greedy — классический жадный: берёт копию, после которой видно больше ходов (мир не видит);
+// smart  — жадный, который смотрит на мир: просьба жильца, гирлянда, лавки, кот.
+// Когда хода нет, все: букет → колода → кофе.
+function support(s, slots){                                    // всё, что закрывает эти окна (транзитивно вниз)
+  const out = new Set(), st = slots.slice();
+  while (st.length){ const x = st.pop(); for (const y of s.lay.coveredBy[x]) if (s.present[y] && !out.has(y)){ out.add(y); st.push(y); } }
+  return out;
+}
+function greedyScore(s, k, rnd){
+  const id = k === 'tram' ? s.tram.card : s.tab[k], r = rankOf(id);
+  let have = 0, fresh = 0;
+  for (let q = 0; q < s.lay.n; q++){
+    if (q === k || !s.present[q] || !isOpen(s, q)) continue;
+    if (fitsRank(id, rankOf(s.tab[q]))) have++;
+  }
+  if (k !== 'tram') for (const x of s.lay.covers[k]){
+    if (!s.present[x] || s.cover[x] !== 1) continue;
+    fresh += known(s, x) ? (fitsRank(id, rankOf(s.tab[x])) ? 1 : 0) : 2 / 13;
+  }
+  return have + fresh + rnd() * 1e-3;
+}
+function smartScore(s, k, rnd){
+  let sc = greedyScore(s, k, rnd);
+  if (k === 'tram') return sc + 0.3;                          // трамвай уедет — карту с подножки брать, пока стоит
+  if (s.req && s.req.state === 'live'){
+    const sup = support(s, s.req.slots);
+    if (sup.has(k)) sc += 1.5 + 2 / (1 + s.deck.length);      // ближе к концу колоды — важнее
+  }
+  for (const g of s.garlands){
+    if (g.state === 'live' && g.slots.includes(k)) sc += 4;
+    if (g.state === 'idle' && g.slots.includes(k)) sc += garlandChain(s, g, k) ? 3 : -2;   // начинать, только если цепочка сложится
+  }
+  const sh = s.lay.slots[k].house >= 0 ? s.shops[s.lay.slots[k].house] : null;
+  if (sh && sh.type && !sh.open && sh.type !== 'cafe') sc += 0.3 * Math.min(1, (sh.fill + dropFor(s.streak + 1)) / CFG.SHOP_NEED);
+  if (s.cat && s.cat.k === k) sc += 0.3;
+  return sc;
+}
+// Сложится ли гирлянда, если начать с окна k: дальше подряд только её окна, каждое открыто и подходит к предыдущему.
+function garlandChain(s, g, k){
+  const t = cloneState(s); step(t, k);
+  for (let guard = 0; guard < g.slots.length; guard++){
+    if (g.slots.every(x => !t.present[x])) return true;
+    const nx = g.slots.find(x => t.present[x] && isOpen(t, x) && fits(t, t.tab[x]));
+    if (nx === undefined) return false;
+    step(t, nx);
+  }
+  return g.slots.every(x => !t.present[x]);
+}
+function pick(s, opts, kind, rnd){
+  if (kind === 'random') return opts[Math.floor(rnd() * opts.length)];
+  const f = kind === 'smart' ? smartScore : greedyScore;
+  let best = opts[0], bs = -Infinity;
+  for (const o of opts){ const v = f(s, o, rnd); if (v > bs){ bs = v; best = o; } }
+  return best;
+}
+// Доигрывает s ботом (мутирует). opts.coffee === false — без кофе; opts.onDecision(s, opts) — для метрик.
+function playOut(s, kind, rnd, opts){
+  opts = opts || {};
+  let guard = 0;
+  while (!isWin(s) && guard++ < 500){
+    const m = matches(s);
+    if (tramOpen(s) && fits(s, s.tram.card)) m.push('tram');
+    if (opts.onDecision) opts.onDecision(s, m);
+    let mv;
+    // «смотрит»: если любой ход рвёт будущую гирлянду, а колода ещё толстая — придержать окна и взять карту
+    if (kind === 'smart' && m.length && s.deck.length > (opts.holdDeck ?? 99) && m.every(k => k !== 'tram' && s.garlands.some(g => g.state === 'idle' && g.slots.includes(k) && !garlandChain(s, g, k)))) mv = 'draw';
+    else if (m.length) mv = pick(s, m, kind, rnd);
+    else if (s.wild) mv = 'wild';
+    else if (s.deck.length) mv = 'draw';
+    else if (opts.coffee !== false && coffeeAvailable(s) && (coffeeFree(s) || opts.paid)) mv = 'coffee';
+    else break;
+    step(s, mv);
+  }
+  return s;
+}
+function botRun(li, attempt, kind, seed, opts){
+  const s = createState(li, attempt), rnd = mulberry32(seed);
+  playOut(s, kind, rnd, opts);
+  return { win: isWin(s), left: s.left, moves: s.moves, plays: s.plays, draws: s.draws, best: s.best, coffee: s.coffee,
+    deckLeft: s.deck.length, shops: s.shops.filter(o => o.open).length, shopsAll: s.shops.filter(o => o.type).length,
+    req: s.req ? s.req.state : null, garlands: s.garlands.map(g => g.state), wilds: s.wilds, tram: s.tram ? s.tram.taken : 0 };
+}
+function randomRun(li, seed, opts){ return botRun(li, 0, 'random', seed, opts); }
+function greedyRun(li, seed, opts){ return botRun(li, 0, 'greedy', seed || 1, opts); }
+/* КОНЕЦ ЯДРА */
+
+// ---------------------------------------------------------------------------
+// Оболочка: экраны, ввод, рендер, звук, сейв, дебаг-хук. Время абсолютное (§4).
+// ---------------------------------------------------------------------------
+const NAME = 'window-lights';
+const T0 = performance.now();
+function log(kind, name, info){            // журнал [game] — одна строка на событие (§11)
+  console.log('[game] ' + JSON.stringify({ t: +((performance.now() - T0) / 1000).toFixed(3), kind, name, info: info === undefined ? '' : String(info) }));
+}
+const SAVE_KEY = NAME + '.v1';
+function loadSave(){ try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { return {}; } }
+function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.save)); } catch (e) {} }
+
+// --- контент оболочки: жильцы (картинка — assets/sc-<id>.jpg), города, вводные фич ---
+const PEOPLE = {
+  granny:      { name: 'Dona Lurdes', letter: 'My geraniums have never had so much light. Sunday tea is at five. Bring the cards!' },
+  couple:      { name: 'Inês & Rui', letter: 'We danced until the neighbours knocked. Then they danced too. Thank you for the light.' },
+  atticcat:    { name: 'Pimenta the cat', letter: 'Mrrr. The attic is warm now. I will come and sit at your table. — P.' },
+  widower:     { name: 'Senhor Artur', letter: 'My first custard tarts came out burnt. The second batch was perfect. I saved you one.' },
+  nurse:       { name: 'Joana', letter: 'A twelve-hour shift, and the light was on when I came home. It means more than you know.' },
+  fado:        { name: 'Senhor Alberto', letter: 'Forty years I sang to an empty room. Tonight the whole street listened.' },
+  ballet:      { name: 'Madame Clara', letter: 'Two new students this week. The attic is a studio again. Come and watch them dance.' },
+  student:     { name: 'Tiago', letter: 'I am painting tiles for the shop downstairs. The blue ones are for your door.' },
+  seamstress:  { name: 'Dona Rosa', letter: 'Bring me anything torn. I mend dresses, hems and, now and then, hearts.' },
+  bedtime:     { name: 'Marta & Bia', letter: 'Bia wants a new bedtime story now: the lady who lights windows with cards.' },
+  sailor:      { name: 'Capitão Zé', letter: 'Every ship I ever sailed is in a bottle now. This one carries your name.' },
+  youngdad:    { name: 'Pedro & Tomás', letter: 'Tomás finally sleeps. I danced the kitchen floor thin. Worth it.' },
+  writer:      { name: 'Helena', letter: 'Chapter one: a woman inherits a house in Lisbon. You know how the rest goes.' },
+  cardplayers: { name: 'Fernando & Raul', letter: 'We play cards every evening and could use a third. Raul cheats. Bring patience.' },
+  trumpet:     { name: 'Duarte, 14', letter: 'Sorry about the noise. I am getting better! Mum says I am getting better.' },
+  yoga:        { name: 'Sofia', letter: 'Breathe in: the river. Breathe out: the tram. Lisbon is easy to love.' },
+  cavaquinho:  { name: 'Seu Jorge', letter: 'My parrot learned a new samba. I taught it. Or maybe it taught me.' },
+  carnival:    { name: 'Dandara', letter: 'Ten thousand sequins to go. Carnival waits for nobody!' },
+  painter:     { name: 'Lia', letter: 'I painted our hill tonight, with every window lit. Yours too.' },
+  feijoada:    { name: 'Dona Bené', letter: 'Feijoada on Saturday. Bring the whole street. There is always enough.' },
+  forro:       { name: 'Marlene & Tião', letter: 'Thirty years married, and he still steps on my toes. I love it.' },
+  capoeira:    { name: 'Caio & Vó Nice', letter: 'Caio kicked the lamp. Vó laughed so hard. The light is still on!' },
+  braids:      { name: 'Ana & Luíza', letter: 'Luíza says your windows look like stars. She is six, so she is always right.' },
+  football:    { name: 'Seu Nilo & Dona Cida', letter: 'GOOOOL! Sorry. We will be quieter. (We will not.)' },
+  singer:      { name: 'Bia', letter: 'I sang my first song online tonight. Three people listened. One was my mother.' },
+  orchids:     { name: 'Rafael', letter: 'The orchids bloomed and the marmoset ate one. We are still friends.' },
+  homework:    { name: 'Júlia', letter: 'Maths is done. Skateboard next. Thank you for the light over my desk.' },
+  brigadeiro:  { name: 'Vó Dirce', letter: 'Roll them small, roll them round, eat one for every window you light.' },
+  bicycle:     { name: 'Diego', letter: 'Bike fixed. Riding down the hill tomorrow. Brakes: probably fine.' },
+  acai:        { name: 'Nina & Duda', letter: 'Rule one of our flat: açaí is always shared. Rule two: see rule one.' },
+  drummer:     { name: 'Mestre Paulo', letter: 'The big drum is the heart of samba. Tonight the whole street has a heartbeat.' },
+  newspaper:   { name: 'Seu Otávio', letter: 'The news is bad, the coffee is good, and my window is bright.' },
+  nursery:     { name: 'Clara & Felipe', letter: 'The room is yellow, the crib is ready, and we are very, very nervous.' },
+  flags:       { name: 'Cecília', letter: 'Two hundred flags for the festa! Will you help me hang them over the steps?' },
+};
+const CITIES = {
+  lisbon: { name: 'Lisbon', street: 'Beco das Flores · Alfama', bg: 'bg-lisbon', festa: 'Festa de Santo António',
+    walls: ['#e7ae4f', '#e49b93', '#f0dcb8', '#9fcbd6', '#a9cf9f'], shutters: ['#2f6b58', '#2d5a8c', '#7b4b2b', '#8a3b3b'],
+    scale: [220, 246.9, 261.6, 293.7, 329.6, 349.2, 392, 440], chords: [[220, 261.6, 329.6], [146.8, 220, 293.7], [164.8, 207.7, 293.7], [220, 261.6, 329.6]] },
+  rio: { name: 'Rio de Janeiro', street: 'Ladeira do Sol · Santa Teresa', bg: 'bg-rio', festa: 'Festa Junina',
+    walls: ['#3fb1ab', '#f2b03a', '#ec8566', '#b39bd6', '#9fcd5e'], shutters: ['#22524f', '#b5512f', '#2d5a8c', '#6f3d7a'],
+    scale: [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3], chords: [[130.8, 246.9, 329.6], [110, 277.2, 392], [146.8, 261.6, 349.2], [98, 246.9, 349.2]] },
+};
+const INTRO = {
+  bakery:  { art: 'shop-lisbon-bakery', title: 'The bakery', text: 'Clear the windows above a shop to light it up. The bakery sends +2 cards to your deck.' },
+  florist: { art: 'shop-lisbon-florist', title: 'Flowers & coins', text: 'The flower shop gives you a bouquet: tap it to play any card. The café pays in coins.' },
+  cat:     { art: 'cat-sit', sprite: true, title: 'Pimenta the cat', text: 'Play the window with the cat. It jumps to your table, and your next deck card keeps the streak.' },
+  tram:    { art: 'tram', sprite: true, title: 'Tram 28', text: 'Every few moves the tram stops by. Take the card from its step before it leaves.' },
+  garland: { art: 'sc-flags', title: 'Festa flags', text: 'Flags tie windows together. Play all of them in one streak and they light up: +2 cards.' },
+  line:    { art: 'sc-feijoada', title: 'The washing line', text: 'Cards hang on the line. Take the one at the right end and the line brings the next.' },
+  mico:    { art: 'mico', sprite: true, title: 'A curious marmoset', text: 'The marmoset peeks into a dark window, so you can see that card early.' },
+  request: { art: 'sc-brigadeiro', title: 'A neighbour asks', text: 'Light every window of her flat before the deck runs out. She will send +2 cards.' },
+  festa:   { art: 'sc-drummer', title: 'Festa on the steps', text: 'The last evening on the street. Everything you have learned, all at once.' },
+};
+
+// --- арт: файлы рядом с игрой, грузятся по имени (§5, §11) ---
+const ART_FILES = [
+  'assets/bg-lisbon.jpg', 'assets/bg-rio.jpg', 'assets/cafe-table.jpg',
+  'assets/shop-lisbon-bakery.jpg', 'assets/shop-lisbon-florist.jpg', 'assets/shop-lisbon-cafe.jpg',
+  'assets/shop-rio-bakery.jpg', 'assets/shop-rio-florist.jpg', 'assets/shop-rio-cafe.jpg',
+  'assets/cat-sit.png', 'assets/cat-leap.png', 'assets/waiter.png', 'assets/bouquet.png', 'assets/letter.png', 'assets/coffee.png',
+  'assets/tram.png', 'assets/mico.png', 'assets/suitcase.png', 'assets/key.png', 'assets/bulb.png',
+  'assets/sc-granny.jpg', 'assets/sc-couple.jpg', 'assets/sc-atticcat.jpg', 'assets/sc-widower.jpg', 'assets/sc-nurse.jpg',
+  'assets/sc-fado.jpg', 'assets/sc-ballet.jpg', 'assets/sc-student.jpg', 'assets/sc-seamstress.jpg', 'assets/sc-bedtime.jpg',
+  'assets/sc-sailor.jpg', 'assets/sc-youngdad.jpg', 'assets/sc-writer.jpg', 'assets/sc-cardplayers.jpg', 'assets/sc-trumpet.jpg',
+  'assets/sc-yoga.jpg', 'assets/sc-cavaquinho.jpg', 'assets/sc-carnival.jpg', 'assets/sc-painter.jpg', 'assets/sc-feijoada.jpg',
+  'assets/sc-forro.jpg', 'assets/sc-capoeira.jpg', 'assets/sc-braids.jpg', 'assets/sc-football.jpg', 'assets/sc-singer.jpg',
+  'assets/sc-orchids.jpg', 'assets/sc-homework.jpg', 'assets/sc-brigadeiro.jpg', 'assets/sc-bicycle.jpg', 'assets/sc-acai.jpg',
+  'assets/sc-drummer.jpg', 'assets/sc-newspaper.jpg', 'assets/sc-nursery.jpg', 'assets/sc-flags.jpg',
+];
+const ART = {};
+const artUrl = {};
+for (const f of ART_FILES){
+  const name = f.replace(/^assets\//, '').replace(/\.(png|jpg)$/, '');
+  const img = new Image(); img.decoding = 'async'; img.src = f; ART[name] = img; artUrl[name] = f;
+}
+const ready = (img) => img && img.complete && img.naturalWidth > 0;
+
+const G = {
+  s: null, li: 0, screen: 'street',
+  save: Object.assign({ level: 0, done: {}, coins: 0, people: [], read: {}, seen: {}, muted: false, moved: 0 }, loadSave()),
+  fx: [], scene: null, shownCur: null, fly: null, ending: 0, endKind: '', timeScale: 1, paused: false,
+  lastInput: performance.now(), tut: 0, wrong: {}, shake: {}, revealAt: {}, catFx: null, lineShift: 0, lineAt: 0,
+  stats: null, errors: [],
+};
+
+// --- звук: WebAudio-синтез без файлов (гитара Карплуса — Стронга, колокольчики, шум), старт по первому жесту (§8) ---
+const Audio = {
+  ac: null, out: null, cache: {}, musicOn: true, nextBeat: 0, beat: 0,
+  init(){
+    if (this.ac){ if (this.ac.state === 'suspended') this.ac.resume(); return; }
+    try {
+      this.ac = new (window.AudioContext || window.webkitAudioContext)();
+      this.out = this.ac.createGain(); this.out.gain.value = 0.85; this.out.connect(this.ac.destination);
+    } catch (e) { this.ac = null; }
+  },
+  ok(){ return this.ac && !G.save.muted; },
+  pluckBuf(freq){                      // струна: шумовой всплеск в кольцевом буфере, усреднение — затухание
+    const key = Math.round(freq * 10);
+    if (this.cache[key]) return this.cache[key];
+    const sr = this.ac.sampleRate, N = Math.max(2, Math.round(sr / freq)), len = Math.floor(sr * 1.8);
+    const buf = this.ac.createBuffer(1, len, sr), d = buf.getChannelData(0), ring = new Float32Array(N), rnd = mulberry32(key);
+    for (let i = 0; i < N; i++) ring[i] = rnd() * 2 - 1;
+    let p = 0;
+    for (let i = 0; i < len; i++){ const a = ring[p], b = ring[(p + 1) % N]; d[i] = a; ring[p] = (a + b) * 0.5 * 0.9965; p = (p + 1) % N; }
+    return (this.cache[key] = buf);
+  },
+  pluck(freq, vol, at){
+    if (!this.ok()) return;
+    const t = at || this.ac.currentTime, src = this.ac.createBufferSource(), g = this.ac.createGain(), f = this.ac.createBiquadFilter();
+    src.buffer = this.pluckBuf(freq); f.type = 'lowpass'; f.frequency.value = 2600;
+    g.gain.value = vol || 0.3; src.connect(f).connect(g).connect(this.out); src.start(t);
+  },
+  bell(freq, vol, dur){
+    if (!this.ok()) return;
+    const t = this.ac.currentTime;
+    [[1, 1], [2.76, 0.35], [5.4, 0.15]].forEach(([m, a]) => {
+      const o = this.ac.createOscillator(), g = this.ac.createGain();
+      o.type = 'sine'; o.frequency.value = freq * m;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime((vol || 0.18) * a, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 1.1) / m ** 0.3);
+      o.connect(g).connect(this.out); o.start(t); o.stop(t + (dur || 1.1) + 0.05);
+    });
+  },
+  noise(dur, vol, freq, q){
+    if (!this.ok()) return;
+    const t = this.ac.currentTime, sr = this.ac.sampleRate, len = Math.floor(sr * dur), buf = this.ac.createBuffer(1, len, sr), d = buf.getChannelData(0), rnd = mulberry32(len);
+    for (let i = 0; i < len; i++) d[i] = (rnd() * 2 - 1) * (1 - i / len);
+    const src = this.ac.createBufferSource(), f = this.ac.createBiquadFilter(), g = this.ac.createGain();
+    src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq || 1800; f.Q.value = q || 0.8; g.gain.value = vol || 0.2;
+    src.connect(f).connect(g).connect(this.out); src.start(t);
+  },
+  city(){ return CITIES[G.s ? LEVELS[G.s.li].city : LEVELS[G.save.level].city]; },
+  play(streak){ const sc = this.city().scale; this.pluck(sc[Math.min(sc.length - 1, (streak - 1) % 8)] * 2, 0.32); this.noise(0.05, 0.08, 3000, 1.5); log('sound', 'play', 'streak=' + streak); },
+  light(){ this.bell(1318.5, 0.07, 0.9); log('sound', 'light'); },
+  wrong(){ this.pluck(110, 0.25); this.noise(0.08, 0.12, 400, 1); log('sound', 'wrong'); },
+  draw(){ this.noise(0.18, 0.16, 2400, 0.6); this.pluck(196, 0.14); log('sound', 'draw'); },
+  shop(){ this.bell(1046.5, 0.16, 1.2); setTimeout(() => this.bell(1318.5, 0.16, 1.4), 140); log('sound', 'shop'); },
+  movein(){ const c = this.city().chords[0]; c.forEach((f, i) => setTimeout(() => this.pluck(f * 2, 0.26), i * 70)); setTimeout(() => this.bell(1568, 0.08, 1.4), 260); log('sound', 'movein'); },
+  meow(){
+    if (!this.ok()) return;
+    const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain(), f = this.ac.createBiquadFilter();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(520, t); o.frequency.linearRampToValueAtTime(820, t + 0.12); o.frequency.linearRampToValueAtTime(480, t + 0.38);
+    f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 3;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+    o.connect(f).connect(g).connect(this.out); o.start(t); o.stop(t + 0.45); log('sound', 'meow');
+  },
+  tram(){ this.bell(1760, 0.12, 0.6); setTimeout(() => this.bell(1760, 0.12, 0.6), 220); this.noise(0.9, 0.05, 200, 0.7); log('sound', 'tram'); },
+  garland(){ [0, 2, 4, 7].forEach((d, i) => setTimeout(() => this.bell(880 * 2 ** (d / 12), 0.09, 0.8), i * 80)); log('sound', 'garland'); },
+  coffee(){ this.noise(0.7, 0.1, 900, 0.5); setTimeout(() => this.bell(1174.7, 0.08, 0.7), 500); log('sound', 'coffee'); },
+  win(){ const ch = this.city().chords; ch.forEach((c, k) => c.forEach((f, i) => setTimeout(() => this.pluck(f * 2, 0.24), k * 260 + i * 45))); log('sound', 'win'); },
+  lose(){ this.pluck(146.8, 0.22); setTimeout(() => this.pluck(130.8, 0.22), 220); log('sound', 'lose'); },
+  // тихая музыка: арпеджио гитары по аккордам города (фаду в Лиссабоне, босса в Рио)
+  music(){
+    if (!this.ok() || !this.musicOn || G.paused || document.hidden) return;
+    const now = this.ac.currentTime, step = 0.3;
+    if (this.nextBeat < now) this.nextBeat = now + 0.05;
+    while (this.nextBeat < now + 0.25){
+      const ch = this.city().chords, c = ch[Math.floor(this.beat / 8) % ch.length], k = this.beat % 8;
+      const pat = [0, 2, 1, 2, 0, 2, 1, 2], f = c[pat[k]] * (pat[k] ? 2 : 1);
+      if (k !== 5) this.pluck(f, k === 0 ? 0.07 : 0.045, this.nextBeat);
+      this.nextBeat += step; this.beat++;
+    }
+  },
+};
+let touched = false;                       // вибрация только после первого касания (иначе Chrome ругается в консоль)
+function buzz(ms){ if (!touched) return; try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+// ---------------------------------------------------------------------------
+// Геометрия: всё в виртуальных юнитах при ширине 400 (§2)
+// ---------------------------------------------------------------------------
+const VW = 400;
+const CW = 44, CH = 60, HALF = 24, ROW = 68;   // карта в окне, полуклетка, шаг этажа
+const PAD = 13, ROOF = 30, SHOP_H = 50;        // поле стены вокруг окон, высота фронтона, лавка под домом
+const TABLE_H = 190;                           // столик кафе внизу
+let scale = 1, W = VW, H = 700, DPR = 1;
+
+// Геометрия уровня: где окна, дома, лавки, стол. Пересчитывается при смене уровня и размера.
+function geo(){
+  if (G.geo && G.geo.li === G.s.li && G.geo.H === H) return G.geo;
+  const L = LEVELS[G.s.li], top = 58, tableTop = H - TABLE_H, street = L.tram ? 50 : 22;
+  G.geo = computeGeo(G.s, { x: 0, y: top, w: VW, h: tableTop - street - top - 4, maxFs: 1.5, reserve: 120 }, tableTop);
+  return G.geo;
+}
+// Геометрия фасада в прямоугольнике box: игра (весь экран) и миниатюры на экране улицы.
+function computeGeo(s0, box, tableTop){
+  const lay = s0.lay, L = LEVELS[s0.li];
+  const grid = lay.slots.filter(s => s.kind !== 'line');
+  const maxC = Math.max(...grid.map(s => s.c)), rows = lay.rows;
+  const contentW = maxC * HALF + CW + PAD * 2, contentH = ROOF + (rows - 1) * ROW + CH + PAD + SHOP_H;
+  const top = box.y, availH = box.h;
+  // маленькие дома крупнее (урок читается издалека); над фасадом по возможности место под сценку
+  const fs = Math.max(Math.min(1, (box.w - 8) / contentW, availH / contentH), Math.min(box.maxFs, (box.w - 8) / contentW, (availH - box.reserve) / contentH));
+  const fw = contentW * fs, fh = contentH * fs;
+  const stageRoom = availH - fh;                 // место над фасадом под сценку
+  const ox = box.x + (box.w - fw) / 2 + PAD * fs, oy = top + Math.max(0, stageRoom) + ROOF * fs;
+  const sx = (c) => ox + (c * HALF + CW / 2) * fs, sy = (r) => oy + (r * ROW + CH / 2) * fs;
+  const groundY = oy + ((rows - 1) * ROW + CH + PAD) * fs, streetY = groundY + SHOP_H * fs;
+  const rects = lay.slots.map(s => s.kind === 'line' ? null : { x: sx(s.c) - CW * fs / 2, y: sy(s.r) - CH * fs / 2, w: CW * fs, h: CH * fs, cx: sx(s.c), cy: sy(s.r) });
+  const houses = lay.houses.map((apts, hi) => {
+    const ks = lay.slots.map((s, k) => s.house === hi ? k : -1).filter(k => k >= 0);
+    const byRow = {};
+    for (const k of ks){ const s = lay.slots[k]; (byRow[s.r] = byRow[s.r] || []).push(s.c); }
+    const rs = Object.keys(byRow).map(Number).sort((a, b) => a - b);
+    const ext = rs.map(r => ({ r, l: sx(Math.min(...byRow[r])) - (CW / 2 + PAD) * fs, rr: sx(Math.max(...byRow[r])) + (CW / 2 + PAD) * fs, y: sy(r), n: byRow[r].length }));
+    const bottomL = Math.min(...ext.map(e => e.l)), bottomR = Math.max(...ext.map(e => e.rr));
+    return { hi, ks, ext, l: bottomL, r: bottomR, top: ext[0].y - (CH / 2 + PAD) * fs, color: houseColor(L, hi), tiles: houseTiles(L, hi), shutter: CITIES[L.city].shutters[(hi + L.n) % 4] };
+  });
+  // квартира: рамка всех её окон — интерьер растягивается на неё, каждое окно показывает свою часть
+  const apts = {};
+  for (const [a, ks] of Object.entries(lay.apts)){
+    const rs = ks.map(k => rects[k]);
+    apts[a] = { x: Math.min(...rs.map(r => r.x)) - 6, y: Math.min(...rs.map(r => r.y)) - 6, x2: Math.max(...rs.map(r => r.x + r.w)) + 6, y2: Math.max(...rs.map(r => r.y + r.h)) + 6 };
+  }
+  // верёвка: между крыльями двора, на уровне верхнего этажа
+  let line = null;
+  if (lay.line){
+    const wingL = houses[0], wingR = houses[houses.length - 1];
+    const x0 = wingL.r + 4, x1 = wingR.l - 4, y = sy(0) - 6 * fs;
+    line = { x0, x1, y, step: (CW + 8) * fs };
+  }
+  const stageH = Math.max(120, Math.min(176, stageRoom + 120));
+  tableTop = tableTop || H;
+  const g = {
+    li: s0.li, H, fs, ox, oy, rects, houses, apts, line, groundY, streetY, tableTop,
+    cur: { x: VW / 2, y: tableTop + 104, w: CW * 1.38, h: CH * 1.38 },
+    deck: { x: 66, y: tableTop + 108, w: CW * 1.2, h: CH * 1.2 },
+    bouquet: { x: VW - 70, y: tableTop + 104, r: 34 },
+    tramStop: { x: VW / 2 + 60, y: streetY },
+    stage: { x: VW / 2 - stageH * 0.7, y: top + 2, w: stageH * 1.4, h: stageH },
+  };
+  return g;
+}
+function houseColor(L, hi){ const w = CITIES[L.city].walls; return w[(hi * 2 + L.n) % w.length]; }
+function houseTiles(L, hi){ return L.city === 'lisbon' && (L.layout === 'narrow' ? hi !== 1 : (hi + L.n) % 4 === 3); }
+
+// ---------------------------------------------------------------------------
+// Рисование: именованные функции, от чего зависят — в комментарии (§11)
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+let PAL = null;
+function palette(){ if (!PAL) PAL = { card: css('--card'), red: css('--card-red'), black: css('--card-black'), glass: css('--glass'), glass2: css('--glass2'),
+  amber: css('--amber'), roof: css('--roof'), roofDark: css('--roof-dark'), stone: css('--stone'), stoneDark: css('--stone-dark') }; return PAL; }
+const ease = (t) => t < 0 ? 0 : t > 1 ? 1 : 1 - (1 - t) * (1 - t);
+const easeIO = (t) => t < 0 ? 0 : t > 1 ? 1 : t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+function rr(c, x, y, w, h, r){ c.beginPath(); c.roundRect(x, y, w, h, r); }
+// Картинка «обложкой» в прямоугольник (обрезка по центру, focus 0..1 — куда сдвинуть кадр).
+function drawCover(c, img, x, y, w, h, fx, fy, zoom){
+  if (!ready(img)) return false;
+  const iw = img.naturalWidth, ih = img.naturalHeight, z = zoom || 1;
+  const k = Math.max(w / iw, h / ih) * z, sw = w / k, sh = h / k;
+  const sx = Math.max(0, Math.min(iw - sw, (iw - sw) * (fx === undefined ? 0.5 : fx))), sy = Math.max(0, Math.min(ih - sh, (ih - sh) * (fy === undefined ? 0.5 : fy)));
+  c.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  return true;
+}
+// Масть кодом (не эмодзи: цвет и вид одинаковы на всех платформах). x, y — центр, s — размер.
+function drawSuit(c, suit, x, y, s){
+  c.beginPath();
+  if (suit === 1){        // червы
+    c.moveTo(x, y + s * 0.42);
+    c.bezierCurveTo(x - s * 0.9, y - s * 0.15, x - s * 0.42, y - s * 0.75, x, y - s * 0.28);
+    c.bezierCurveTo(x + s * 0.42, y - s * 0.75, x + s * 0.9, y - s * 0.15, x, y + s * 0.42);
+  } else if (suit === 2){ // бубны
+    c.moveTo(x, y - s * 0.55); c.lineTo(x + s * 0.4, y); c.lineTo(x, y + s * 0.55); c.lineTo(x - s * 0.4, y); c.closePath();
+  } else if (suit === 0){ // пики
+    c.moveTo(x, y - s * 0.55);
+    c.bezierCurveTo(x + s * 0.9, y + s * 0.05, x + s * 0.35, y + s * 0.55, x, y + s * 0.16);
+    c.bezierCurveTo(x - s * 0.35, y + s * 0.55, x - s * 0.9, y + s * 0.05, x, y - s * 0.55);
+    c.moveTo(x, y + s * 0.1); c.lineTo(x + s * 0.2, y + s * 0.55); c.lineTo(x - s * 0.2, y + s * 0.55); c.closePath();
+  } else {                // трефы
+    const r = s * 0.24;
+    c.arc(x, y - s * 0.26, r, 0, Math.PI * 2); c.moveTo(x - s * 0.24 + r, y + s * 0.06); c.arc(x - s * 0.24, y + s * 0.06, r, 0, Math.PI * 2);
+    c.moveTo(x + s * 0.24 + r, y + s * 0.06); c.arc(x + s * 0.24, y + s * 0.06, r, 0, Math.PI * 2);
+    c.moveTo(x, y); c.lineTo(x + s * 0.16, y + s * 0.55); c.lineTo(x - s * 0.16, y + s * 0.55); c.closePath();
+  }
+  c.fill();
+}
+// Лицо карты: белая карта, крупный ранг сверху, масть под ним — читается в окне 41 px шириной.
+function drawCardFace(c, id, x, y, w, h, alpha){
+  const P = palette(), red = suitOf(id) === 1 || suitOf(id) === 2, col = red ? P.red : P.black;
+  c.save(); if (alpha !== undefined) c.globalAlpha *= alpha;
+  c.fillStyle = 'rgba(0,0,0,.22)'; rr(c, x + 1, y + 2, w, h, w * 0.14); c.fill();
+  c.fillStyle = P.card; rr(c, x, y, w, h, w * 0.14); c.fill();
+  c.strokeStyle = 'rgba(60,40,20,.18)'; c.lineWidth = 1; c.stroke();
+  c.fillStyle = col; c.textAlign = 'center'; c.textBaseline = 'middle';
+  const rk = RANKS[rankOf(id)];
+  c.font = '900 ' + Math.round(w * (rk === '10' ? 0.5 : 0.6)) + 'px Nunito, system-ui, sans-serif';
+  c.fillText(rk, x + w / 2, y + h * 0.36);
+  drawSuit(c, suitOf(id), x + w / 2, y + h * 0.72, w * 0.36);
+  c.restore();
+}
+function drawCardBack(c, x, y, w, h){
+  c.fillStyle = 'rgba(0,0,0,.25)'; rr(c, x + 1, y + 2, w, h, w * 0.14); c.fill();
+  c.fillStyle = '#26356b'; rr(c, x, y, w, h, w * 0.14); c.fill();
+  c.strokeStyle = '#f3e2bd'; c.lineWidth = 1.6; rr(c, x + 3, y + 3, w - 6, h - 6, w * 0.1); c.stroke();
+  c.fillStyle = '#f3e2bd'; c.globalAlpha = 0.85;
+  c.beginPath(); c.moveTo(x + w / 2, y + h * 0.3); c.lineTo(x + w * 0.68, y + h / 2); c.lineTo(x + w / 2, y + h * 0.7); c.lineTo(x + w * 0.32, y + h / 2); c.closePath(); c.fill();
+  c.globalAlpha = 1;
+}
+// Призрак ±1: полупрозрачная карта с рангом без масти, пунктирная рамка.
+function drawGhost(c, rank, x, y, w, h, pulse){
+  c.save();
+  c.globalAlpha = 0.5 + 0.15 * pulse;
+  c.fillStyle = 'rgba(255,250,240,.55)'; rr(c, x, y, w, h, w * 0.14); c.fill();
+  c.setLineDash([4, 3]); c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 1.5; c.stroke(); c.setLineDash([]);
+  c.globalAlpha = 0.9; c.fillStyle = '#3a3358'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '900 ' + Math.round(w * 0.5) + 'px Nunito, system-ui, sans-serif';
+  c.fillText(RANKS[rank], x + w / 2, y + h * 0.5);
+  c.restore();
+}
+// Узор азулежу для стен Лиссабона: бело-голубая плитка, рисуется один раз в маленький холст.
+let TILE_PAT = null;
+function tilePattern(c){
+  if (TILE_PAT) return TILE_PAT;
+  const t = document.createElement('canvas'); t.width = t.height = 20; const g = t.getContext('2d');
+  g.fillStyle = '#eef2f4'; g.fillRect(0, 0, 20, 20);
+  g.fillStyle = '#3e6fae';
+  for (const a of [0, 1, 2, 3]){ g.save(); g.translate(10, 10); g.rotate(a * Math.PI / 2); g.beginPath(); g.ellipse(0, -4.2, 2.2, 3.6, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
+  g.fillStyle = '#f2c14e'; g.beginPath(); g.arc(10, 10, 1.6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3e6fae'; for (const [x, y] of [[0, 0], [20, 0], [0, 20], [20, 20]]){ g.beginPath(); g.arc(x, y, 3.2, 0, Math.PI * 2); g.fill(); }
+  g.strokeStyle = 'rgba(62,111,174,.35)'; g.lineWidth = 1; g.strokeRect(0.5, 0.5, 19, 19);
+  TILE_PAT = c.createPattern(t, 'repeat');
+  return TILE_PAT;
+}
+// Дом: стена-многоугольник по краям окон (сужение кверху = фронтон), черепица, карнизы между этажами.
+function drawHouse(c, g, h, glow){
+  const P = palette(), fs = g.fs, e = h.ext, top = e[0], eaveY = top.y - (CH / 2 + PAD) * fs;
+  const pts = [];
+  pts.push([e[e.length - 1].l, g.streetY]);
+  for (let i = e.length - 1; i >= 0; i--) pts.push([e[i].l, e[i].y]);
+  const apex = top.n === 1;
+  pts.push([top.l, eaveY + (apex ? 6 : 0) * fs]);
+  if (apex) pts.push([(top.l + top.rr) / 2, eaveY - ROOF * 0.7 * fs]);
+  pts.push([top.rr, eaveY + (apex ? 6 : 0) * fs]);
+  for (let i = 0; i < e.length; i++) pts.push([e[i].rr, e[i].y]);
+  pts.push([e[e.length - 1].rr, g.streetY]);
+  c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath();
+  c.save(); c.clip();
+  c.fillStyle = h.color; c.fillRect(h.l - 30, eaveY - 60, h.r - h.l + 60, g.streetY - eaveY + 80);
+  if (h.tiles){ c.globalAlpha = 0.92; c.fillStyle = tilePattern(c); c.fillRect(h.l - 30, eaveY - 60, h.r - h.l + 60, g.streetY - eaveY + 80); c.globalAlpha = 1; }
+  // вечерний свет: сверху холоднее, снизу теплее от фонарей
+  const gr = c.createLinearGradient(0, eaveY - 40, 0, g.streetY);
+  gr.addColorStop(0, 'rgba(40,30,90,.38)'); gr.addColorStop(0.55, 'rgba(40,30,90,.12)'); gr.addColorStop(1, 'rgba(255,160,80,.10)');
+  c.fillStyle = gr; c.fillRect(h.l - 30, eaveY - 60, h.r - h.l + 60, g.streetY - eaveY + 80);
+  if (glow > 0){ c.fillStyle = 'rgba(255,190,100,' + (0.16 * glow) + ')'; c.fillRect(h.l - 30, eaveY - 60, h.r - h.l + 60, g.streetY - eaveY + 80); }
+  // карнизы этажей
+  c.strokeStyle = 'rgba(255,245,225,.55)'; c.lineWidth = 2.2 * fs;
+  for (let i = 0; i < e.length; i++){ const y = e[i].y + ROW / 2 * fs; c.beginPath(); c.moveTo(h.l - 30, y); c.lineTo(h.r + 30, y); c.stroke(); }
+  c.restore();
+  // кромка стены
+  c.strokeStyle = 'rgba(40,25,40,.35)'; c.lineWidth = 1.5;
+  c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke();
+  // черепичная крыша по верхнему краю
+  const roofPts = apex ? [[top.l - 6 * fs, eaveY + 9 * fs], [(top.l + top.rr) / 2, eaveY - ROOF * 0.7 * fs - 7 * fs], [top.rr + 6 * fs, eaveY + 9 * fs]]
+    : [[top.l - 6 * fs, eaveY], [top.rr + 6 * fs, eaveY]];
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  c.strokeStyle = P.roofDark; c.lineWidth = 11 * fs; c.beginPath(); roofPts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke();
+  c.strokeStyle = P.roof; c.lineWidth = 7 * fs; c.beginPath(); roofPts.forEach(([x, y], i) => i ? c.lineTo(x, y - 1.5 * fs) : c.moveTo(x, y - 1.5 * fs)); c.stroke();
+  if (!apex){        // плоский верх: черепичный скат и труба
+    c.fillStyle = P.roof; c.beginPath(); c.moveTo(top.l - 4 * fs, eaveY - 2 * fs); c.lineTo(top.l + 10 * fs, eaveY - 16 * fs); c.lineTo(top.rr - 10 * fs, eaveY - 16 * fs); c.lineTo(top.rr + 4 * fs, eaveY - 2 * fs); c.closePath(); c.fill();
+    c.fillStyle = P.roofDark; c.fillRect(top.rr - 22 * fs, eaveY - 26 * fs, 8 * fs, 12 * fs);
+  }
+  // плечи-фронтоны ниже верха — тонкий светлый кант
+  c.strokeStyle = 'rgba(255,240,215,.7)'; c.lineWidth = 2 * fs;
+  for (let i = 1; i < e.length; i++){
+    if (Math.abs(e[i].l - e[i - 1].l) > 1){ c.beginPath(); c.moveTo(e[i].l, e[i].y); c.lineTo(e[i - 1].l, e[i - 1].y); c.stroke(); }
+    if (Math.abs(e[i].rr - e[i - 1].rr) > 1){ c.beginPath(); c.moveTo(e[i].rr, e[i].y); c.lineTo(e[i - 1].rr, e[i - 1].y); c.stroke(); }
+  }
+}
+// Лавка под домом: витрина GPT; закрыта — синяя ночь и лампочки-счётчик на маркизе; открыта — тёплый свет.
+function drawShop(c, g, h, shop, city, t){
+  const x = h.l + 2, w = h.r - h.l - 4, y = g.groundY + 2, hh = g.streetY - y;
+  c.save(); rr(c, x, y, w, hh, 4); c.clip();
+  const img = shop.type ? ART['shop-' + city + '-' + shop.type] : null;
+  if (img && ready(img)) drawCover(c, img, x, y, w, hh, 0.5, 0.5);
+  else {           // лавки нет: дверь подъезда
+    c.fillStyle = 'rgba(30,20,30,.25)'; c.fillRect(x, y, w, hh);
+    const dw = Math.min(30, w * 0.3) * g.fs + 10; c.fillStyle = '#5a3a2a'; rr(c, x + w / 2 - dw / 2, y + 6, dw, hh - 6, 6); c.fill();
+    c.fillStyle = 'rgba(255,200,120,.5)'; c.fillRect(x + w / 2 - dw / 2 + 4, y + 10, dw - 8, 8);
+  }
+  if (shop.type){
+    const op = G.shopAt[h.hi] ? ease((t - G.shopAt[h.hi]) / 900) : shop.open ? 1 : 0;
+    c.fillStyle = 'rgba(14,18,48,' + (0.62 * (1 - op)) + ')'; c.fillRect(x, y, w, hh);
+    if (op > 0 && op < 1){ c.fillStyle = 'rgba(255,220,140,' + (0.5 * (1 - op)) + ')'; c.fillRect(x, y, w, hh); }
+  }
+  c.restore();
+  if (shop.type && !shop.open){       // лампочки: сколько света уже набежало
+    const n = CFG.SHOP_NEED;
+    for (let i = 0; i < n; i++){
+      const bx = x + w / 2 + (i - (n - 1) / 2) * 13 * g.fs, by = y + 9 * g.fs, on = i < shop.fill;
+      c.fillStyle = on ? '#ffd27a' : 'rgba(255,255,255,.25)';
+      if (on){ c.shadowColor = '#ffb347'; c.shadowBlur = 8; }
+      c.beginPath(); c.arc(bx, by, 3.6 * g.fs, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+    }
+  }
+}
+// Окно: каменный наличник; тёмное — стекло со ставнями; открытое — карта в тёплом свете; снятое — интерьер жильца.
+function drawWindow(c, g, k, t){
+  const s = G.s, r = g.rects[k], sl = s.lay.slots[k], P = palette(), fs = g.fs;
+  const h = sl.house >= 0 ? g.houses[sl.house] : null;
+  let x = r.x, y = r.y;
+  const sh = G.shake[k]; if (sh && t - sh < CFG.WRONG_MS){ x += Math.sin((t - sh) / 22) * 3 * (1 - (t - sh) / CFG.WRONG_MS); }
+  if (sl.kind === 'step'){ drawStep(c, g, k, x, y, r, t); return; }
+  const m = 4 * fs;
+  // наличник и подоконник
+  c.fillStyle = P.stone; rr(c, x - m, y - m, r.w + m * 2, r.h + m * 2, 5 * fs); c.fill();
+  c.fillStyle = P.stoneDark; c.fillRect(x - m - 2 * fs, y + r.h + m - 1, r.w + m * 2 + 4 * fs, 4 * fs);
+  const present = s.present[k], open = present && s.cover[k] === 0;
+  const ra = G.revealAt[k], rp = ra ? ease((t - ra) / CFG.FLIP_MS) : 1;
+  if (!present){
+    // интерьер: часть общей картины квартиры
+    const ap = g.apts[sl.apt], img = ART['sc-' + LEVELS[s.li].apts[sl.apt]];
+    c.save(); rr(c, x, y, r.w, r.h, 3 * fs); c.clip();
+    if (!drawCoverRegion(c, img, ap, x, y, r.w, r.h)){ c.fillStyle = P.amber; c.fillRect(x, y, r.w, r.h); }
+    c.fillStyle = 'rgba(255,190,90,.12)'; c.fillRect(x, y, r.w, r.h);
+    c.restore();
+    // свет из окна на стену
+    const gl = c.createRadialGradient(r.cx, r.cy, r.w * 0.3, r.cx, r.cy, r.w * 1.15);
+    gl.addColorStop(0, 'rgba(255,200,110,.0)'); gl.addColorStop(1, 'rgba(255,200,110,0)');
+    // переплёт рамы
+    c.strokeStyle = 'rgba(255,248,232,.85)'; c.lineWidth = 1.6 * fs;
+    c.beginPath(); c.moveTo(r.cx, y); c.lineTo(r.cx, y + r.h); c.moveTo(x, y + r.h * 0.38); c.lineTo(x + r.w, y + r.h * 0.38); c.stroke();
+    return;
+  }
+  if (open){
+    // тёплый свет за картой
+    c.fillStyle = P.amber; rr(c, x, y, r.w, r.h, 3 * fs); c.fill();
+    if (rp < 1){        // ставни раскрываются
+      drawGlass(c, x, y, r.w, r.h, fs);
+      drawShutters(c, x, y, r.w, r.h, h ? h.shutter : '#2f6b58', 1 - rp, fs);
+      if (rp > 0.5) drawCardFace(c, s.tab[k], x + 1, y + 1, r.w - 2, r.h - 2, (rp - 0.5) * 2);
+    } else drawCardFace(c, s.tab[k], x + 1, y + 1, r.w - 2, r.h - 2);
+    // распахнутые ставни по бокам
+    c.fillStyle = h ? h.shutter : '#2f6b58'; c.globalAlpha = 0.95 * rp;
+    c.fillRect(x - m - 6 * fs, y - 1, 5 * fs, r.h + 2); c.fillRect(x + r.w + m + 1 * fs, y - 1, 5 * fs, r.h + 2); c.globalAlpha = 1;
+  } else {
+    drawGlass(c, x, y, r.w, r.h, fs);
+    if (k === s.mico){            // мико подсматривает: карта видна сквозь стекло
+      drawCardFace(c, s.tab[k], x + 4 * fs, y + 4 * fs, r.w - 8 * fs, r.h - 8 * fs, 0.55);
+    } else drawShutters(c, x, y, r.w, r.h, h ? h.shutter : '#2f6b58', 1, fs);
+  }
+}
+// Свет из окон на стену: тёплое пятно вокруг каждого окна, где уже живут или горит карта (рисуется до окон).
+function drawWindowGlow(c, g, t){
+  const s = G.s;
+  c.save(); c.globalCompositeOperation = 'lighter';
+  for (let k = 0; k < s.lay.n; k++){
+    const r = g.rects[k], sl = s.lay.slots[k];
+    if (!r || sl.kind !== 'win' || (s.present[k] && s.cover[k] > 0)) continue;
+    const a = s.present[k] ? 0.10 : 0.2, rad = r.w * 1.25;
+    const gr = c.createRadialGradient(r.cx, r.cy, r.w * 0.3, r.cx, r.cy, rad);
+    gr.addColorStop(0, 'rgba(255,170,70,' + a + ')'); gr.addColorStop(1, 'rgba(255,170,70,0)');
+    c.fillStyle = gr; c.fillRect(r.cx - rad, r.cy - rad, rad * 2, rad * 2);
+  }
+  c.restore();
+}
+// Интерьер квартиры в окно: картинка натянута на рамку квартиры, в окно попадает своя часть.
+function drawCoverRegion(c, img, ap, x, y, w, h){
+  if (!ready(img) || !ap) return false;
+  const iw = img.naturalWidth, ih = img.naturalHeight, AW = ap.x2 - ap.x, AH = ap.y2 - ap.y;
+  const k = Math.max(AW / iw, AH / ih), offX = (iw * k - AW) / 2, offY = (ih * k - AH) / 2;
+  const sx = (x - ap.x + offX) / k, sy = (y - ap.y + offY) / k;
+  c.drawImage(img, sx, sy, w / k, h / k, x, y, w, h);
+  return true;
+}
+function drawGlass(c, x, y, w, h, fs){
+  const P = palette(), gr = c.createLinearGradient(x, y, x + w, y + h);
+  gr.addColorStop(0, P.glass2); gr.addColorStop(1, P.glass);
+  c.fillStyle = gr; rr(c, x, y, w, h, 3 * fs); c.fill();
+  c.strokeStyle = 'rgba(160,190,255,.25)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x + w * 0.2, y + h * 0.15); c.lineTo(x + w * 0.45, y + h * 0.15); c.stroke();
+}
+// Закрытые деревянные ставни; closed = 1 — сомкнуты, 0 — распахнуты (для анимации зажигания).
+function drawShutters(c, x, y, w, h, color, closed, fs){
+  if (closed <= 0) return;
+  const hw = w / 2 * closed;
+  c.fillStyle = color;
+  c.fillRect(x, y, hw, h); c.fillRect(x + w - hw, y, hw, h);
+  c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 1;
+  for (let yy = y + 5 * fs; yy < y + h - 2; yy += 5 * fs){ c.beginPath(); c.moveTo(x + 2, yy); c.lineTo(x + hw - 2, yy); c.moveTo(x + w - hw + 2, yy); c.lineTo(x + w - 2, yy); c.stroke(); }
+  if (closed > 0.98){ c.strokeStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.moveTo(x + w / 2, y); c.lineTo(x + w / 2, y + h); c.stroke(); }
+}
+// Ступень лестницы Селарона: мозаика из цветной плитки, на ней карта (или пусто, если снята).
+function drawStep(c, g, k, x, y, r, t){
+  const s = G.s, fs = g.fs, cols = ['#d8342f', '#f2b833', '#2f8f4e', '#2f62b0', '#f3efe6'];
+  const sx = x - 12 * fs, sw = r.w + 24 * fs;
+  c.save(); rr(c, sx, y + r.h * 0.2, sw, r.h * 0.95, 4 * fs); c.clip();
+  const tile = 7 * fs, rnd = mulberry32(k * 97 + 5);
+  for (let yy = y + r.h * 0.2; yy < y + r.h * 1.2; yy += tile) for (let xx = sx; xx < sx + sw; xx += tile){ c.fillStyle = cols[Math.floor(rnd() * 5)]; c.fillRect(xx + 0.5, yy + 0.5, tile - 1, tile - 1); }
+  c.restore();
+  c.fillStyle = 'rgba(255,255,255,.75)'; c.fillRect(sx, y + r.h * 0.2, sw, 2.5 * fs);
+  if (!s.present[k]) return;
+  if (s.cover[k] === 0){
+    const ra = G.revealAt[k], rp = ra ? ease((t - ra) / CFG.FLIP_MS) : 1;
+    if (rp < 1) drawCardBack(c, x, y, r.w, r.h);
+    drawCardFace(c, s.tab[k], x, y, r.w, r.h, rp);
+  } else drawCardBack(c, x, y, r.w, r.h);
+}
+// Цветочные ящики и балконы — декор, по сиду окна.
+function drawDecor(c, g, k){
+  const s = G.s, r = g.rects[k], sl = s.lay.slots[k], fs = g.fs;
+  if (sl.kind !== 'win') return;
+  const v = mulberry32(k * 31 + s.li * 7 + 3)();
+  const y = r.y + r.h + 4 * fs;
+  if (v < 0.28){        // ящик с геранью
+    c.fillStyle = '#b5532f'; rr(c, r.x - 3 * fs, y, r.w + 6 * fs, 6 * fs, 2); c.fill();
+    c.fillStyle = '#3f8a4a'; for (let i = 0; i < 5; i++){ c.beginPath(); c.arc(r.x + (i + 0.5) * r.w / 5, y - 1, 3.2 * fs, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = '#e8343c'; for (let i = 0; i < 4; i++){ c.beginPath(); c.arc(r.x + (i + 1) * r.w / 5, y - 3 * fs, 2.6 * fs, 0, Math.PI * 2); c.fill(); }
+  } else if (v < 0.5){  // кованый балкончик
+    c.strokeStyle = '#2a2236'; c.lineWidth = 1.6 * fs;
+    c.beginPath(); c.moveTo(r.x - 5 * fs, y + 1); c.lineTo(r.x + r.w + 5 * fs, y + 1); c.stroke();
+    c.lineWidth = 1 * fs; for (let i = 0; i <= 6; i++){ const xx = r.x - 5 * fs + i * (r.w + 10 * fs) / 6; c.beginPath(); c.moveTo(xx, y + 1); c.lineTo(xx, y + 6 * fs); c.stroke(); }
+    c.fillStyle = '#2a2236'; c.fillRect(r.x - 6 * fs, y + 6 * fs, r.w + 12 * fs, 2 * fs);
+  }
+}
+// Бельевая верёвка: провисающая дуга между крыльями, карты на прищепках; берётся крайняя справа.
+function drawLine(c, g, t){
+  const s = G.s, L = g.line, ln = s.lay.line, fs = g.fs;
+  const rest = []; for (let i = 0; i < ln.n; i++) if (s.present[ln.first + i]) rest.push(ln.first + i);
+  const sag = 16 * fs, yAt = (x) => L.y + sag * (1 - ((2 * (x - L.x0) / (L.x1 - L.x0)) - 1) ** 2);
+  c.strokeStyle = '#f2ead8'; c.lineWidth = 1.6; c.beginPath();
+  for (let x = L.x0; x <= L.x1; x += 4){ const y = yAt(x); x === L.x0 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
+  c.fillStyle = '#d9cbb0'; for (const x of [L.x0, L.x1]){ c.beginPath(); c.arc(x, L.y, 3.5 * fs, 0, Math.PI * 2); c.fill(); }
+  const shift = G.lineAt ? ease((t - G.lineAt) / 420) : 1;
+  const show = Math.min(ln.show, rest.length);
+  for (let i = show - 1; i >= 0; i--){
+    const k = rest[i], slotX = L.x1 - (CW / 2 + 6) * fs - (i + (1 - shift)) * L.step;
+    const y = yAt(slotX) + 4 * fs, w = CW * fs * 0.95, h = CH * fs * 0.95;
+    g.rects[k] = { x: slotX - w / 2, y, w, h, cx: slotX, cy: y + h / 2 };
+    c.save(); c.translate(slotX, y); c.rotate(Math.sin(t / 700 + i) * 0.03);
+    drawCardFace(c, s.tab[k], -w / 2, 0, w, h, i === 0 ? 1 : 0.92);
+    c.fillStyle = '#b07b45'; c.fillRect(-w * 0.28 - 2, -5 * fs, 4 * fs, 9 * fs); c.fillRect(w * 0.28 - 2, -5 * fs, 4 * fs, 9 * fs);
+    c.restore();
+  }
+  for (let i = show; i < rest.length; i++) g.rects[rest[i]] = null;
+  if (rest.length > show){       // ждут в окне левого крыла
+    const x = L.x0 + 12 * fs, y = L.y - 8 * fs;
+    c.fillStyle = 'rgba(20,22,48,.8)'; rr(c, x - 12, y - 10, 24, 20, 10); c.fill();
+    c.fillStyle = '#fff'; c.font = '900 13px Nunito, system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+' + (rest.length - show), x, y + 1);
+  }
+}
+// Гирлянда бандейриньяс: флажки и лампочки по верху своих окон; горят, пока серия держится.
+function drawGarland(c, g, gi, t){
+  const s = G.s, gl = s.garlands[gi], fs = g.fs;
+  const rs = gl.slots.map(k => g.rects[k]).filter(Boolean);
+  if (!rs.length) return;
+  const lit = gl.state === 'lit', broken = gl.state === 'broken';
+  const colors = ['#e94f4f', '#f4c542', '#3fb27f', '#4d8fe0', '#e97ad0'];
+  // нить между окнами гирлянды
+  const pts = rs.map(r => [r.cx, r.y - 6 * fs]).sort((a, b) => a[0] - b[0]);
+  c.strokeStyle = broken ? 'rgba(200,200,210,.3)' : 'rgba(255,240,210,.75)'; c.lineWidth = 1.2; c.setLineDash([3, 3]);
+  c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.setLineDash([]);
+  // флажки бандейриньяс поверху каждого окна
+  rs.forEach((r, ri) => {
+    const x0 = r.x - 3 * fs, x1 = r.x + r.w + 3 * fs, y0 = r.y - 5 * fs, sag = (broken ? 9 : 5) * fs;
+    c.strokeStyle = broken ? 'rgba(200,200,210,.4)' : 'rgba(255,240,210,.9)'; c.lineWidth = 1.1;
+    c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo((x0 + x1) / 2, y0 + sag * 2, x1, y0); c.stroke();
+    for (let i = 0; i < 4; i++){
+      const q = (i + 0.5) / 4, x = x0 + (x1 - x0) * q, y = y0 + sag * 4 * q * (1 - q);
+      c.fillStyle = broken ? 'rgba(160,160,175,.5)' : colors[(i + ri) % colors.length];
+      const wv = lit ? Math.sin(t / 160 + i * 2 + ri) * 1.5 : 0;
+      c.beginPath(); c.moveTo(x - 3.6 * fs, y); c.lineTo(x + 3.6 * fs, y); c.lineTo(x + wv, y + 7.5 * fs); c.closePath(); c.fill();
+    }
+  });
+  // лампочки на окнах гирлянды: зажжены сыгранные в этой серии
+  gl.slots.forEach((k, i) => {
+    const r = g.rects[k]; if (!r) return;
+    const on = lit || (gl.state === 'live' && !s.present[k]);
+    c.fillStyle = on ? '#ffe28a' : broken ? 'rgba(150,150,160,.5)' : 'rgba(255,255,255,.35)';
+    if (on){ c.shadowColor = '#ffbe4d'; c.shadowBlur = 12; }
+    c.beginPath(); c.arc(r.cx, r.y - 12 * fs, 4 * fs, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+  });
+}
+// Просьба жильца: пузырь над квартирой — лицо жильца и лампочка; выполнена — сердце.
+function drawRequest(c, g, t){
+  const s = G.s, rq = s.req; if (!rq) return;
+  const ap = g.apts[rq.apt]; if (!ap) return;
+  const x = (ap.x + ap.x2) / 2, y = ap.y - 26, img = ART['sc-' + LEVELS[s.li].apts[rq.apt]];
+  const bob = Math.sin(t / 400) * 2;
+  if (rq.state === 'missed') c.globalAlpha = 0.45;
+  c.fillStyle = '#fff6e6'; rr(c, x - 38, y - 20 + bob, 76, 36, 18); c.fill();
+  c.beginPath(); c.moveTo(x - 6, y + 15 + bob); c.lineTo(x + 6, y + 15 + bob); c.lineTo(x, y + 24 + bob); c.fill();
+  c.save(); c.beginPath(); c.arc(x - 18, y - 2 + bob, 14, 0, Math.PI * 2); c.clip(); drawCover(c, img, x - 32, y - 16 + bob, 28, 28, 0.5, 0.3, 1.6); c.restore();
+  if (rq.state === 'done'){ c.fillStyle = '#e8456a'; drawSuit(c, 1, x + 16, y - 2 + bob, 22); }
+  else if (ready(ART.bulb)) c.drawImage(ART.bulb, x + 4, y - 15 + bob, 24, 26);
+  c.globalAlpha = 1;
+}
+// Стол кафе: мрамор GPT, колода (официант), текущая карта и призраки ±1, букет, серия-гирлянда.
+function drawTable(c, g, t){
+  const s = G.s, P = palette();
+  if (ready(ART['cafe-table'])) drawCover(c, ART['cafe-table'], 0, g.tableTop - 46, VW, H - g.tableTop + 46, 0.5, 0.0);
+  else { c.fillStyle = '#e9e4dc'; c.fillRect(0, g.tableTop, VW, H - g.tableTop); }
+  // серия: огоньки над столиком
+  const n = 10, st = Math.min(n, s.streak);
+  c.strokeStyle = 'rgba(40,30,30,.55)'; c.lineWidth = 1.2; c.beginPath();
+  const lx0 = 20, lx1 = VW - 20, ly = g.tableTop - 34, sag = 12;
+  for (let x = lx0; x <= lx1; x += 6){ const q = (x - lx0) / (lx1 - lx0); const y = ly + sag * 4 * q * (1 - q); x === lx0 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
+  for (let i = 0; i < n; i++){
+    const q = (i + 0.5) / n, x = lx0 + (lx1 - lx0) * q, y = ly + sag * 4 * q * (1 - q) + 5, on = i < st;
+    c.fillStyle = on ? '#ffe08a' : 'rgba(255,255,255,.38)';
+    if (on){ c.shadowColor = '#ffb13d'; c.shadowBlur = 16; }
+    c.beginPath(); c.ellipse(x, y, 5, 6.4, 0, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+    c.fillStyle = 'rgba(40,30,30,.7)'; c.fillRect(x - 2, y - 8, 4, 3);
+  }
+  // колода
+  const d = g.deck, deckN = s.deck.length;
+  for (let i = Math.min(5, deckN) - 1; i >= 0; i--) drawCardBack(c, d.x - d.w / 2 - i * 1.4, d.y - d.h / 2 - i * 1.8, d.w, d.h);
+  if (!deckN){ c.strokeStyle = 'rgba(80,70,90,.35)'; c.setLineDash([5, 4]); rr(c, d.x - d.w / 2, d.y - d.h / 2, d.w, d.h, 7); c.stroke(); c.setLineDash([]); }
+  c.fillStyle = 'rgba(25,25,55,.86)'; rr(c, d.x - 17, d.y + d.h / 2 + 4, 34, 21, 10); c.fill();
+  c.fillStyle = '#fff'; c.font = '900 14px Nunito, system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(deckN), d.x, d.y + d.h / 2 + 15);
+  // текущая карта и призраки
+  const cur = g.cur, shown = G.fly && t < G.fly.t1 ? G.fly.prev : s.cur;
+  const pulse = 0.5 + 0.5 * Math.sin(t / 380);
+  if (shown !== WILD){
+    const gw = CW * 1.02, gh = CH * 1.02, gy = cur.y - cur.h / 2 - gh - 10;
+    drawGhost(c, (rankOf(shown) + 12) % 13, cur.x - gw - 6, gy, gw, gh, pulse);
+    drawGhost(c, (rankOf(shown) + 1) % 13, cur.x + 6, gy, gw, gh, pulse);
+  }
+  if (shown === WILD) drawWildCard(c, cur.x - cur.w / 2, cur.y - cur.h / 2, cur.w, cur.h);
+  else if (shown !== null && shown !== undefined) drawCardFace(c, shown, cur.x - cur.w / 2, cur.y - cur.h / 2, cur.w, cur.h);
+  // кот на столике
+  if (s.cat && s.cat.table && ready(ART['cat-sit']) && !(G.catFx && t < G.catFx.t1)) c.drawImage(ART['cat-sit'], cur.x + cur.w / 2 + 6, cur.y - 10, 44, 55);
+  // букет
+  const b = g.bouquet;
+  if (s.wild > 0 && ready(ART.bouquet)){
+    const bob = Math.sin(t / 300) * 2;
+    c.drawImage(ART.bouquet, b.x - 30, b.y - 40 + bob, 60, 66);
+    c.fillStyle = 'rgba(25,25,55,.86)'; rr(c, b.x + 12, b.y - 44, 22, 20, 10); c.fill();
+    c.fillStyle = '#fff'; c.font = '900 13px Nunito, system-ui'; c.fillText(String(s.wild), b.x + 23, b.y - 33);
+  }
+}
+function drawWildCard(c, x, y, w, h){
+  c.fillStyle = '#fff6ea'; rr(c, x, y, w, h, w * 0.14); c.fill();
+  if (ready(ART.bouquet)) c.drawImage(ART.bouquet, x + w * 0.12, y + h * 0.14, w * 0.76, h * 0.72);
+}
+
+// ---------------------------------------------------------------------------
+// Кадр
+// ---------------------------------------------------------------------------
+function render(){
+  const t = performance.now();
+  ctx.setTransform(DPR * scale, 0, 0, DPR * scale, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const onStreet = !G.s || G.screen === 'street' || G.screen === 'move' || G.screen === 'letter';
+  const city = onStreet ? (G.screen === 'move' ? LEVELS[Math.min(G.save.level, LEVELS.length - 1)].city : streetCity()) : LEVELS[G.s.li].city;
+  drawSky(ctx, city, G.s && G.screen !== 'street' ? geo().houses.reduce((m, h) => Math.min(m, h.top), 1e9) - ROOF : Math.min(H * 0.5, 380) - 140);
+  if (G.screen === 'street' || G.screen === 'move' || G.screen === 'letter' || G.screen === 'done') { drawStreet(ctx, t); drawFx(ctx, t); return; }
+  if (!G.s) return;
+  const g = geo(), s = G.s, L = LEVELS[s.li];
+  const winGlow = G.ending && G.endKind === 'win' ? ease((t - (G.ending - CFG.WIN_DELAY_MS)) / 900) : 0;
+  for (const h of g.houses) drawHouse(ctx, g, h, winGlow);
+  for (const h of g.houses) drawShop(ctx, g, h, s.shops[h.hi], L.city, t);
+  drawWindowGlow(ctx, g, t);
+  for (let k = 0; k < s.lay.n; k++) if (s.lay.slots[k].kind !== 'line'){ drawDecor(ctx, g, k); drawWindow(ctx, g, k, t); }
+  if (s.lay.line) drawLine(ctx, g, t);
+  s.garlands.forEach((gl, gi) => drawGarland(ctx, g, gi, t));
+  drawRequest(ctx, g, t);
+  drawCritters(ctx, g, t);
+  drawTram(ctx, g, t);
+  drawTable(ctx, g, t);
+  drawHint(ctx, g, t);
+  drawFx(ctx, t);
+  drawScene(ctx, g, t);
+  drawTutorial(ctx, g, t);
+  if (G.ending && t >= G.ending) finishEnding();
+  if (toastUntil && t > toastUntil){ $('toast').classList.add('hide'); toastUntil = 0; }
+}
+// Небо и дальний город: фон GPT сдвигается так, чтобы силуэт города (≈62% высоты картинки) стоял прямо над крышами;
+// выше картинки — её верхний цвет, ниже — тёмная мостовая.
+function drawSky(c, city, roofY){
+  const img = ART[CITIES[city].bg];
+  if (ready(img)){
+    const ih = VW * img.naturalHeight / img.naturalWidth, k = Math.max(1, roofY / (ih * 0.6));
+    const w = VW * k, h = ih * k, y0 = roofY - h * 0.6;
+    c.drawImage(img, (VW - w) / 2, y0, w, h); c.fillStyle = '#1b2350'; c.fillRect(0, y0 + h - 1, VW, H);
+  }
+  else { const gr = c.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2b2a6b'); gr.addColorStop(0.5, '#e98a6a'); gr.addColorStop(1, '#1b2350'); c.fillStyle = gr; c.fillRect(0, 0, VW, H); }
+}
+// Кот на подоконнике и мико на окне.
+function drawCritters(c, g, t){
+  const s = G.s;
+  if (s.cat && s.cat.k >= 0 && g.rects[s.cat.k] && ready(ART['cat-sit']) && !(G.catFx && t < G.catFx.t1)){
+    const r = g.rects[s.cat.k], h = 34 * g.fs + 6;
+    c.drawImage(ART['cat-sit'], r.x + r.w - h * 0.55, r.y + r.h - h * 0.92, h * 0.8, h);
+  }
+  if (s.mico >= 0 && g.rects[s.mico] && ready(ART.mico)){
+    const r = g.rects[s.mico], h = 30 * g.fs + 6, bob = Math.sin(t / 500) * 1.5;
+    c.drawImage(ART.mico, r.x - h * 0.45, r.y + r.h - h * 0.85 + bob, h * 1.04, h);
+  }
+  if (G.catFx && t < G.catFx.t1){         // прыжок кота по дуге
+    const f = G.catFx, q = easeIO((t - f.t0) / (f.t1 - f.t0)), x = f.x0 + (f.x1 - f.x0) * q, y = f.y0 + (f.y1 - f.y0) * q - Math.sin(q * Math.PI) * 70;
+    if (ready(ART['cat-leap'])){ c.save(); c.translate(x, y); if (f.x1 < f.x0) c.scale(-1, 1); c.drawImage(ART['cat-leap'], -36, -22, 72, 43); c.restore(); }
+  }
+}
+// Трамвай 28: подъезжает, стоит, пока не уехал — карта-пассажир на подножке.
+function drawTram(c, g, t){
+  const s = G.s; if (!s.tram || !ready(ART.tram)) return;
+  const tr = G.tramFx; if (!tr) return;
+  const w = 150, h = w * ART.tram.naturalHeight / ART.tram.naturalWidth, stopX = g.tramStop.x - w / 2;
+  let x;
+  if (tr.mode === 'come') x = VW + 10 + (stopX - VW - 10) * ease((t - tr.t0) / CFG.TRAM_MS);
+  else if (tr.mode === 'stay') x = stopX;
+  else { const q = easeIO((t - tr.t0) / CFG.TRAM_MS); x = stopX + (-w - 20 - stopX) * q; if (q >= 1){ G.tramFx = null; return; } }
+  const y = g.streetY + 44 - h;
+  c.fillStyle = 'rgba(10,10,30,.35)'; c.beginPath(); c.ellipse(x + w / 2, y + h - 2, w * 0.5, 5, 0, 0, Math.PI * 2); c.fill();
+  c.drawImage(ART.tram, x, y, w, h);
+  if (tramOpen(s) && tr.mode !== 'leave'){
+    const cw = CW * 0.92, ch = CH * 0.92, cx = x + w * 0.14 - cw / 2, cy = y + h * 0.22;
+    G.tramCard = { x: cx, y: cy, w: cw, h: ch };
+    drawCardFace(c, s.tram.card, cx, cy, cw, ch);
+    const left = s.tram.until - s.moves;   // сколько ходов ещё стоит
+    for (let i = 0; i < CFG.TRAM_STAY; i++){ c.fillStyle = i < left ? '#ffd56b' : 'rgba(255,255,255,.3)'; c.beginPath(); c.arc(cx + cw / 2 + (i - 0.5) * 12, cy - 8, 4, 0, Math.PI * 2); c.fill(); }
+  } else G.tramCard = null;
+}
+// Подсказка после паузы: мягкий золотой ореол на одном подходящем окне (все сразу не подсвечиваются — по концепту).
+function drawHint(c, g, t){
+  const idle = t - G.lastInput, lim = G.s.tut ? CFG.TUT_HINT_IDLE_MS : CFG.HINT_IDLE_MS;
+  if (idle < lim || G.ending || G.screen !== 'game') return;
+  const k = hintMove(); if (k === null) return;
+  const r = k === 'draw' ? { x: g.deck.x - g.deck.w / 2, y: g.deck.y - g.deck.h / 2, w: g.deck.w, h: g.deck.h } : k === 'tram' ? G.tramCard
+    : k === 'wild' ? { x: g.bouquet.x - 28, y: g.bouquet.y - 40, w: 56, h: 64 } : g.rects[k];
+  if (!r) return;
+  const p = 0.5 + 0.5 * Math.sin(t / 260);
+  c.strokeStyle = 'rgba(255,214,120,' + (0.55 + 0.45 * p) + ')'; c.lineWidth = 3 + p * 2;
+  c.shadowColor = '#ffbf4d'; c.shadowBlur = 16; rr(c, r.x - 5, r.y - 5, r.w + 10, r.h + 10, 8); c.stroke(); c.shadowBlur = 0;
+}
+function hintMove(){
+  const s = G.s; if (!s) return null;
+  const m = matches(s);
+  if (m.length) return m[0];
+  if (tramOpen(s) && fits(s, s.tram.card)) return 'tram';
+  if (s.wild) return 'wild';
+  if (s.deck.length) return 'draw';
+  return null;
+}
+// Сценка жильца крупно: окно «выезжает» в рамку над фасадом, потом возвращается (не блокирует ввод).
+function drawScene(c, g, t){
+  const sc = G.scene; if (!sc) return;
+  const dur = sc.full ? CFG.SCENE_FULL_MS : CFG.SCENE_MS, q = (t - sc.t0) / dur;
+  if (q >= 1){ G.scene = null; log('fx.end', sc.full ? 'movein' : 'scene', sc.who); return; }
+  const inn = ease(Math.min(1, q / 0.18)), out = q > 0.82 ? ease((q - 0.82) / 0.18) : 0, k = inn * (1 - out);
+  const st = g.stage, big = sc.full ? 1.18 : 1;
+  const tw = st.w * big, th = st.h * big, tx = VW / 2 - tw / 2, ty = st.y + (sc.full ? 6 : 0);
+  const fr = sc.from;
+  const x = fr.x + (tx - fr.x) * k, y = fr.y + (ty - fr.y) * k, w = fr.w + (tw - fr.w) * k, h = fr.h + (th - fr.h) * k;
+  c.save();
+  c.globalAlpha = Math.min(1, k * 1.6);
+  c.shadowColor = 'rgba(0,0,0,.45)'; c.shadowBlur = 18; c.fillStyle = '#f6ead3'; rr(c, x - 5, y - 5, w + 10, h + 10, 14); c.fill(); c.shadowBlur = 0;
+  rr(c, x, y, w, h, 10); c.clip();
+  const zoom = sc.full ? 1.0 + 0.05 * q : 1.5 - 0.08 * q;
+  drawCover(c, ART['sc-' + sc.who], x, y, w, h, sc.fx, sc.fy, zoom);
+  c.restore();
+  if (sc.full && k > 0.6){
+    c.save(); c.globalAlpha = Math.min(1, (k - 0.6) * 3);
+    const name = PEOPLE[sc.who].name, by = ty + th + 8;
+    c.font = '900 16px Nunito, system-ui'; const tw2 = c.measureText(name + ' moved in').width + 28;
+    c.fillStyle = 'rgba(25,22,50,.9)'; rr(c, VW / 2 - tw2 / 2, by, tw2, 28, 14); c.fill();
+    c.fillStyle = '#ffe2a0'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(name + ' moved in', VW / 2, by + 14.5);
+    c.restore();
+  }
+}
+// Урок: рука и короткая строка; шаг ждёт игрока, не доигрывает за него.
+function drawTutorial(c, g, t){
+  const s = G.s; if (!s.tut || G.ending) return;
+  const step = tutStep(); if (!step) return;
+  let target = null;
+  if (step.hand === 'draw') target = { x: g.deck.x, y: g.deck.y };
+  else if (typeof step.hand === 'number' && g.rects[step.hand]) target = { x: g.rects[step.hand].cx, y: g.rects[step.hand].cy };
+  if (target){
+    const p = (t % 1100) / 1100, dy = Math.sin(p * Math.PI * 2) * 6;
+    c.strokeStyle = 'rgba(255,255,255,' + (1 - p) + ')'; c.lineWidth = 3; c.beginPath(); c.arc(target.x, target.y, 10 + p * 22, 0, Math.PI * 2); c.stroke();
+    drawHand(c, target.x + 8, target.y + 12 + dy);
+  }
+  if (step.text){
+    c.font = '900 16px Nunito, system-ui'; const tw = c.measureText(step.text).width + 30;
+    const y = g.tableTop - 64;
+    c.fillStyle = 'rgba(22,20,48,.92)'; rr(c, VW / 2 - tw / 2, y - 17, tw, 34, 17); c.fill();
+    c.fillStyle = '#fff3d6'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(step.text, VW / 2, y + 1);
+  }
+}
+// Рука-указатель кодом: ладонь и вытянутый палец, белая с тёмным контуром.
+function drawHand(c, x, y){
+  c.save(); c.translate(x, y); c.rotate(-0.35);
+  c.fillStyle = '#fff'; c.strokeStyle = '#2b2440'; c.lineWidth = 2.2;
+  c.beginPath(); c.roundRect(-5, -26, 10, 26, 5); c.fill(); c.stroke();
+  c.beginPath(); c.roundRect(-12, -6, 26, 26, 9); c.fill(); c.stroke();
+  c.restore();
+}
+function tutStep(){
+  const s = G.s;
+  if (s.plays === 0) return { hand: matches(s)[0], text: 'Tap a card one higher or lower' };
+  if (s.plays === 1 && !s.draws) return { hand: null, text: 'Your turn: find the next one' };
+  if (!matches(s).length && s.deck.length && !s.draws) return { hand: 'draw', text: 'No match? The waiter brings a card' };
+  if (s.draws === 1 && s.plays === 3 && s.left === 3) return { hand: null, text: 'Clear the lower windows to light the upper ones' };
+  return null;
+}
+
+// --- эффекты в canvas (§9): летящая карта, искры, монеты ---
+function addFx(f){ f.t0 = f.t0 || performance.now(); G.fx.push(f); log('fx.start', f.kind, f.info || ''); }
+function drawFx(c, t){
+  G.fx = G.fx.filter(f => {
+    const q = (t - f.t0) / f.dur;
+    if (q >= 1){ log('fx.end', f.kind); return false; }
+    if (q < 0) return true;
+    if (f.kind === 'fly'){        // карта из окна на столик по дуге
+      const e = easeIO(q), x = f.x0 + (f.x1 - f.x0) * e, y = f.y0 + (f.y1 - f.y0) * e - Math.sin(e * Math.PI) * 40;
+      const w = f.w0 + (f.w1 - f.w0) * e, h = f.h0 + (f.h1 - f.h0) * e;
+      c.save(); c.translate(x, y); c.rotate((1 - e) * f.rot);
+      if (f.id === WILD) drawWildCard(c, -w / 2, -h / 2, w, h); else drawCardFace(c, f.id, -w / 2, -h / 2, w, h);
+      c.restore();
+    } else if (f.kind === 'deal'){  // официант кладёт карту из колоды
+      const e = ease(q), x = f.x0 + (f.x1 - f.x0) * e, y = f.y0 + (f.y1 - f.y0) * e;
+      c.save(); c.translate(x, y);
+      if (e < 0.5) drawCardBack(c, -f.w / 2, -f.h / 2, f.w, f.h); else drawCardFace(c, f.id, -f.w / 2, -f.h / 2, f.w, f.h);
+      c.restore();
+      if (ready(ART.waiter) && q < 0.9){ const a = q < 0.2 ? q / 0.2 : q > 0.7 ? (0.9 - q) / 0.2 : 1; c.globalAlpha = a; c.drawImage(ART.waiter, -10 + 20 * a, G.geo.tableTop - 150, 92, 160); c.globalAlpha = 1; }
+    } else if (f.kind === 'spark'){
+      for (let i = 0; i < f.n; i++){
+        const a = (i / f.n) * Math.PI * 2 + f.seed, d = 6 + q * f.r, x = f.x + Math.cos(a) * d, y = f.y + Math.sin(a) * d - q * 10;
+        c.fillStyle = f.color || 'rgba(255,220,130,' + (1 - q) + ')'; c.globalAlpha = 1 - q;
+        c.beginPath(); c.arc(x, y, 2.4 * (1 - q) + 0.6, 0, Math.PI * 2); c.fill();
+      }
+      c.globalAlpha = 1;
+    } else if (f.kind === 'icon'){  // иконка летит: бонус лавки, подарок, кофе
+      const e = easeIO(q), x = f.x0 + (f.x1 - f.x0) * e, y = f.y0 + (f.y1 - f.y0) * e - Math.sin(e * Math.PI) * 50, sz = f.size * (1 + 0.3 * Math.sin(e * Math.PI));
+      if (f.img && ready(ART[f.img])) c.drawImage(ART[f.img], x - sz / 2, y - sz / 2, sz, sz);
+      if (f.label){ c.font = '900 15px Nunito, system-ui'; c.fillStyle = '#fff'; c.strokeStyle = 'rgba(30,20,40,.85)'; c.lineWidth = 4; c.textAlign = 'center'; c.strokeText(f.label, x, y + sz / 2 + 8); c.fillText(f.label, x, y + sz / 2 + 8); }
+    } else if (f.kind === 'confetti'){
+      const rnd = mulberry32(f.seed);
+      for (let i = 0; i < 70; i++){
+        const x = rnd() * VW, sp = 60 + rnd() * 120, y = -20 + q * (H * 0.8) * (0.6 + rnd() * 0.6), cl = ['#e94f4f', '#f4c542', '#3fb27f', '#4d8fe0', '#e97ad0'][i % 5];
+        c.save(); c.translate(x + Math.sin(q * 6 + i) * 14, y); c.rotate(q * sp / 20 + i); c.fillStyle = cl; c.globalAlpha = 1 - q * 0.6;
+        c.beginPath(); c.moveTo(-5, 0); c.lineTo(5, 0); c.lineTo(0, 9); c.closePath(); c.fill(); c.restore();
+      }
+    }
+    return true;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Улица (мета): дома города в ряд — зажжённые, сегодняшний, будущие; жильцы и письма — в DOM-карточке
+// ---------------------------------------------------------------------------
+function cityLevels(city){ return LEVELS.map((L, i) => i).filter(i => LEVELS[i].city === city); }
+function streetCity(){ return G.streetCity || LEVELS[Math.min(G.save.level, LEVELS.length - 1)].city; }
+// Состояние-миниатюра для улицы: зажжённый дом — все окна сняты (видны жильцы), сегодняшний и будущие — тёмные.
+function miniState(li, done){
+  const L = LEVELS[li], lay = parseLayout(L.layout);
+  return { li, lay, tab: new Array(lay.n).fill(0), present: new Array(lay.n).fill(!done), cover: lay.coveredBy.map(() => 1),
+    shops: lay.houses.map((h, i) => ({ type: (L.shops || [])[i] || null, fill: 0, open: done })), mico: -2, cat: null, garlands: [], req: null, tram: null };
+}
+// Улица города: фасады вечеров в ряд теми же функциями, что и в игре. Полоса шире экрана — листается пальцем;
+// рисуется в отдельный холст и перерисовывается раз в секунду (пока догружаются картинки).
+let STREET_CACHE = null;
+const STREET_FS = 0.42, STREET_GAP = 10, STREET_H = 196;
+function streetLayout(city){
+  const lv = cityLevels(city); let x = 14;
+  const items = lv.map(li => {
+    const lay = parseLayout(LEVELS[li].layout), grid = lay.slots.filter(sl => sl.kind !== 'line');
+    const w = (Math.max(...grid.map(sl => sl.c)) * HALF + CW + PAD * 2) * STREET_FS + 8;
+    const it = { li, x, w }; x += w + STREET_GAP; return it;
+  });
+  return { items, width: x + 4 };
+}
+function streetBaseY(){ return Math.max(250, Math.min(H - 330, 380)); }
+function drawStreet(c, t){
+  const city = streetCity(), SL = streetLayout(city), baseY = streetBaseY(), boxH = STREET_H, lv = cityLevels(city);
+  const maxX = Math.max(0, SL.width - VW);
+  if (G.streetX === undefined || G.streetCityShown !== city){
+    const tn = SL.items.find(it => it.li === G.save.level) || SL.items[SL.items.length - 1];
+    G.streetX = Math.max(0, Math.min(maxX, tn.x + tn.w / 2 - VW / 2)); G.streetCityShown = city;
+  }
+  G.streetX = Math.max(0, Math.min(maxX, G.streetX));
+  c.fillStyle = 'rgba(12,14,40,.6)'; c.fillRect(0, baseY, VW, 30);
+  const key = city + ':' + Object.keys(G.save.done).join(',') + ':' + G.save.level + ':' + Math.round(scale * 100);
+  if (!STREET_CACHE || STREET_CACHE.key !== key || t - STREET_CACHE.t > 1000){
+    const cvs = STREET_CACHE && STREET_CACHE.cvs || document.createElement('canvas');
+    const k = DPR * scale; cvs.width = Math.round(SL.width * k); cvs.height = Math.round((boxH + 20) * k);
+    const cc = cvs.getContext('2d'); cc.setTransform(k, 0, 0, k, 0, 0); cc.clearRect(0, 0, SL.width, boxH + 20);
+    const saved = { s: G.s, geo: G.geo, shopAt: G.shopAt, revealAt: G.revealAt };
+    try {
+      for (const it of SL.items){
+        const li = it.li, done = !!G.save.done[li], tonight = li === G.save.level && !done;
+        const fake = miniState(li, done);
+        const g = computeGeo(fake, { x: it.x, y: 10, w: it.w, h: boxH, maxFs: STREET_FS, reserve: 0 }, H);
+        G.s = fake; G.geo = g; G.shopAt = {}; G.revealAt = {};
+        cc.globalAlpha = done || tonight ? 1 : 0.45;
+        for (const h of g.houses) drawHouse(cc, g, h, done ? 0.6 : 0);
+        for (const h of g.houses) drawShop(cc, g, h, fake.shops[h.hi], LEVELS[li].city, 0);
+        for (let q = 0; q < fake.lay.n; q++) if (fake.lay.slots[q].kind !== 'line') drawWindow(cc, g, q, 0);
+        cc.globalAlpha = 1;
+      }
+    } finally { G.s = saved.s; G.geo = saved.geo; G.shopAt = saved.shopAt; G.revealAt = saved.revealAt; }
+    STREET_CACHE = { key, cvs, t };
+  }
+  const k = DPR * scale, sw = Math.min(VW, SL.width);
+  c.drawImage(STREET_CACHE.cvs, G.streetX * k, 0, sw * k, (boxH + 20) * k, 0, baseY - boxH - 10, sw, boxH + 20);
+  for (const it of SL.items){
+    const li = it.li, done = !!G.save.done[li], tonight = li === G.save.level && !done, bx = it.x + it.w / 2 - G.streetX;
+    if (bx < -40 || bx > VW + 40) continue;
+    c.textAlign = 'center'; c.font = '900 12px Nunito, system-ui';
+    if (tonight){
+      const by = baseY + 48 + Math.sin(t / 300) * 3;
+      c.fillStyle = '#ffcf73'; c.beginPath(); c.moveTo(bx, by - 12); c.lineTo(bx - 8, by); c.lineTo(bx + 8, by); c.fill();
+      c.fillText('Tonight', bx, by + 13);
+    } else c.fillStyle = done ? 'rgba(255,230,170,.9)' : 'rgba(255,255,255,.4)', c.fillText(done ? 'Evening ' + (li + 1) : '· · ·', bx, baseY + 20);
+  }
+  if (maxX > 0){               // подсказка, что улица листается
+    c.fillStyle = 'rgba(255,255,255,.5)';
+    if (G.streetX > 2){ c.beginPath(); c.moveTo(10, baseY - 80); c.lineTo(18, baseY - 88); c.lineTo(18, baseY - 72); c.fill(); }
+    if (G.streetX < maxX - 2){ c.beginPath(); c.moveTo(VW - 10, baseY - 80); c.lineTo(VW - 18, baseY - 88); c.lineTo(VW - 18, baseY - 72); c.fill(); }
+  }
+  // гирлянда праздника, когда улица зажжена целиком
+  if (lv.every(li => G.save.done[li])){
+    const colors = ['#e94f4f', '#f4c542', '#3fb27f', '#4d8fe0', '#e97ad0'];
+    for (let row = 0; row < 2; row++){
+      const y0 = streetBaseY() - STREET_H - 40 + row * 34;
+      c.strokeStyle = 'rgba(255,240,210,.8)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(0, y0); c.quadraticCurveTo(VW / 2, y0 + 34, VW, y0); c.stroke();
+      for (let i = 0; i < 18; i++){ const q = (i + 0.5) / 18, x = VW * q, y = y0 + 34 * 2 * q * (1 - q) * 1.0 + 1; c.fillStyle = colors[(i + row) % 5];
+        c.beginPath(); c.moveTo(x - 6, y); c.lineTo(x + 6, y); c.lineTo(x + Math.sin(t / 200 + i) * 2, y + 12); c.closePath(); c.fill(); }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Экраны: DOM-оверлеи, любой открывается кодом или хешем (§6, §11)
+// ---------------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+function showCard(html, cls){
+  const ov = $('overlay'); ov.className = 'show' + (cls ? ' ' + cls : ''); $('card').className = 'card' + (cls && cls.includes('street') ? ' street-card' : ''); $('card').innerHTML = html;
+}
+function hideCard(){ $('overlay').className = ''; }
+function personBtn(id, isNew){
+  const unread = !G.save.read[id];
+  return `<button class="person${isNew ? ' new' : ''}" data-act="letter" data-who="${id}"><i style="background-image:url('${artUrl['sc-' + id]}')"></i>${unread ? '<span class="env"></span>' : ''}<small>${esc(PEOPLE[id].name)}</small></button>`;
+}
+function goto(screen, payload){
+  G.screen = screen; log('screen', screen, payload || '');
+  hud();
+  if (screen === 'game'){ hideCard(); return; }
+  if (screen === 'street'){
+    G.s = null; G.geo = null;
+    const city = streetCity(), C = CITIES[city], lv = cityLevels(city);
+    const people = G.save.people.filter(id => lv.some(li => Object.values(LEVELS[li].apts).includes(id)));
+    const all = lv.every(li => G.save.done[li]), last = G.save.level >= LEVELS.length;
+    const next = Math.min(G.save.level, LEVELS.length - 1), nextCity = LEVELS[next].city;
+    let btn;
+    if (last) btn = `<button class="btn primary wide" data-act="replay">Play the street again</button>`;
+    else if (nextCity !== city) btn = `<button class="btn primary wide" data-act="move">Pack the suitcase</button>`;
+    else btn = `<button class="btn primary wide" data-act="play">Evening ${next + 1}: ${esc(LEVELS[next].name)}</button>`;
+    const empty = Math.max(0, 5 - people.length);
+    showCard(`<span class="tag">${esc(C.name)}</span><h2>${esc(all ? C.festa + '!' : C.street)}</h2>
+      <p>${all ? (last ? 'Every window on the street is lit. Next stop: Montmartre, Brooklyn, Kyoto…' : 'Every window is lit. The whole street is dancing.') : people.length ? 'Your neighbours. Tap one to read a letter.' : 'An old house, a dark street. Light it up, one evening at a time.'}</p>
+      <div class="people">${people.map(id => personBtn(id, G.newPeople && G.newPeople.includes(id))).join('')}${'<span class="person empty"><i></i><small>&nbsp;</small></span>'.repeat(empty)}</div>${btn}`, 'bottom clear street');
+    if (all) addFx({ kind: 'confetti', dur: 3200, seed: 7 });
+    return;
+  }
+  if (screen === 'letter'){
+    const id = payload || 'granny'; G.save.read[id] = true; save();
+    showCard(`<div class="art" style="background-image:url('${artUrl['sc-' + id]}')"></div>
+      <div class="letter">${esc(PEOPLE[id].letter)}<b>— ${esc(PEOPLE[id].name)}</b></div><button class="btn primary wide" data-act="street">Back to the street</button>`);
+    return;
+  }
+  if (screen === 'move'){
+    showCard(`<img class="sprite" src="${artUrl.suitcase}" alt=""><span class="tag">Next stop</span><h2>Rio de Janeiro</h2>
+      <p>A letter from an old friend: “There is a house on the hill in Santa Teresa. It needs someone to turn the lights on.”</p>
+      <button class="btn primary wide" data-act="arrive">Let’s go</button>`);
+    return;
+  }
+  if (screen === 'intro'){
+    const it = INTRO[payload]; if (!it){ goto('game'); return; }
+    const pic = it.sprite ? `<img class="sprite" src="${artUrl[it.art]}" alt="">` : `<div class="art" style="background-image:url('${artUrl[it.art]}')"></div>`;
+    showCard(`${pic}<span class="tag">New tonight</span><h2>${esc(it.title)}</h2><p>${esc(it.text)}</p><button class="btn primary wide" data-act="intro-ok">Got it</button>`);
+    return;
+  }
+  if (screen === 'coffee'){
+    const s = G.s, free = s.tut || s.coffee < CFG.COFFEE_FREE, can = free || G.save.coins + s.coins >= CFG.COFFEE_PRICE;   // монеты кафе этого вечера тоже в счёт
+    showCard(`<img class="sprite" src="${artUrl.coffee}" alt=""><h2>One more coffee?</h2><p>Only ${s.left} window${s.left === 1 ? '' : 's'} left. The waiter brings ${CFG.COFFEE_CARDS} more cards.</p>
+      <div class="row"><button class="btn primary" data-act="coffee" ${can ? '' : 'disabled'}>${free ? 'Yes, please' : CFG.COFFEE_PRICE + ' coins'}</button><button class="btn" data-act="nocoffee">No, thanks</button></div>`);
+    return;
+  }
+  if (screen === 'lose'){
+    showCard(`<h2>The evening is over</h2><p>${G.s ? G.s.left : 0} windows stayed dark. The neighbours will wait. Same house, new cards.</p>
+      <div class="row"><button class="btn primary" data-act="retry">Try again</button><button class="btn" data-act="street">Street</button></div>`);
+    return;
+  }
+  if (screen === 'win'){
+    const p = payload || {}, ids = p.people || [];
+    showCard(`<span class="tag">Evening ${(p.li || 0) + 1}</span><h2>The house is glowing</h2>
+      <div class="people">${ids.map(id => personBtn(id, true)).join('')}</div>
+      <div class="stats"><span>+${p.coins || 0} coins</span><span>best streak ${p.best || 0}</span></div>
+      <button class="btn primary wide" data-act="street">See your street</button>`);
+    return;
+  }
+  if (screen === 'help'){
+    showCard(`<h2>How to play</h2><p>Tap a lit window whose card is one higher or one lower than the card on your table. King and Ace are neighbours. A window lights up when the windows under it are cleared. No match? Tap the deck.</p><button class="btn primary wide" data-act="close">OK</button>`);
+  }
+}
+$('card').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act;
+  Audio.init(); log('input', 'button', act); G.lastInput = performance.now();
+  if (act === 'play') startLevel(Math.min(G.save.level, LEVELS.length - 1));
+  else if (act === 'replay'){ G.save.level = 0; G.save.done = {}; G.save.people = []; G.save.read = {}; G.streetCity = null; save(); goto('street'); }
+  else if (act === 'letter') goto('letter', el.dataset.who);
+  else if (act === 'street' || act === 'close'){ if (act === 'close' && G.s) goto('game'); else { G.streetCity = null; goto('street'); } }
+  else if (act === 'move') goto('move');
+  else if (act === 'arrive'){ G.streetCity = LEVELS[G.save.level].city; G.newPeople = []; Audio.movein(); goto('street'); }
+  else if (act === 'intro-ok'){ G.save.seen[LEVELS[G.s.li].intro] = true; save(); goto('game'); }
+  else if (act === 'retry') startLevel(G.s.li, (G.s.attempt || 0) + 1);
+  else if (act === 'coffee') doMove('coffee');
+  else if (act === 'nocoffee'){ G.ending = performance.now() + 50; G.endKind = 'lose'; hideCard(); G.screen = 'game'; }
+});
+window.addEventListener('hashchange', () => routeHash(location.hash.slice(1)));
+function routeHash(h){
+  if (!h) return;
+  const m = h.match(/^level(\d+)$/);
+  if (m) startLevel(Math.max(0, Math.min(LEVELS.length, +m[1]) - 1));
+  else if (h === 'game') startLevel(Math.min(G.save.level, LEVELS.length - 1));
+  else if (['win', 'lose', 'coffee'].includes(h)){ if (!G.s) startLevel(0, 0, true); goto(h, h === 'win' ? { li: G.s.li, people: Object.values(LEVELS[G.s.li].apts), coins: 25, best: 6 } : undefined); }
+  else if (h === 'letter') goto('letter', 'granny');
+  else if (h === 'intro'){ if (!G.s) startLevel(3, 0, true); goto('intro', LEVELS[G.s.li].intro || 'cat'); }
+  else goto(h);
+}
+
+let toastUntil = 0;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.remove('hide'); toastUntil = performance.now() + CFG.TOAST_MS; }
+function hud(){
+  const s = G.s, li = s ? s.li : Math.min(G.save.level, LEVELS.length - 1), L = LEVELS[li];
+  if (G.screen === 'game' || G.screen === 'coffee' || G.screen === 'intro'){ $('hud-title').textContent = 'Evening ' + (li + 1); $('hud-sub').textContent = CITIES[L.city].name + ' · ' + L.name; }
+  else { $('hud-title').textContent = 'Window Lights'; $('hud-sub').textContent = CITIES[streetCity()].name; }
+  $('hud-coins').textContent = String(G.save.coins + (s ? s.coins : 0));
+  $('mute-wave').style.display = G.save.muted ? 'none' : ''; $('mute-x').style.display = G.save.muted ? '' : 'none';
+}
+
+// ---------------------------------------------------------------------------
+// Партия
+// ---------------------------------------------------------------------------
+function startLevel(li, attempt, quiet){
+  G.s = createState(li, attempt || 0); G.li = li; G.geo = null; G.fx = []; G.scene = null; G.ending = 0; G.endKind = '';
+  G.revealAt = {}; G.shake = {}; G.shopAt = {}; G.catFx = null; G.tramFx = null; G.tramCard = null; G.lineAt = 0; G.fly = null;
+  G.lastInput = performance.now(); G.newPeople = [];
+  G.stats = { t0: performance.now(), taps: 0, wrong: 0, firstPlay: 0 };
+  log('event', 'level.start', 'level=' + (li + 1) + ' attempt=' + (attempt || 0) + ' cards=' + G.s.left + ' deck=' + G.s.deck.length + ' seed=' + G.s.seed);
+  const intro = LEVELS[li].intro;
+  if (!quiet && intro && !G.save.seen[intro]) goto('intro', intro); else goto('game');
+}
+function doMove(m){
+  const s = G.s; if (!s || G.ending) return;
+  const g = geo(), prevCur = s.cur;
+  const prevRect = typeof m === 'number' ? g.rects[m] : m === 'tram' ? G.tramCard : null;
+  step(s, m);
+  if (G.screen === 'coffee') goto('game');
+  const now = performance.now();
+  for (const e of s.ev){
+    if (e.t === 'miss'){ G.shake[e.k] = now; G.stats.wrong++; Audio.wrong(); buzz(15); log('input', 'wrong', 'slot=' + e.k); }
+    else if (e.t === 'play' || e.t === 'tram.take'){
+      const r = prevRect || g.cur;
+      G.fly = { prev: prevCur, t1: now + CFG.FLY_MS };
+      addFx({ kind: 'fly', dur: CFG.FLY_MS, id: e.id, x0: r.x + r.w / 2, y0: r.y + r.h / 2, x1: g.cur.x, y1: g.cur.y, w0: r.w, h0: r.h, w1: g.cur.w, h1: g.cur.h, rot: (e.k % 2 ? 0.3 : -0.3) || 0.2, info: 'slot=' + e.k });
+      Audio.play(e.streak); buzz(8);
+      if (!G.stats.firstPlay) G.stats.firstPlay = now - G.stats.t0;
+      log('event', 'play', 'slot=' + (e.k === undefined ? 'tram' : e.k) + ' card=' + RANKS[rankOf(e.id)] + ' streak=' + e.streak);
+      if (e.t === 'play' && s.lay.slots[e.k].apt){
+        const apt = s.lay.slots[e.k].apt, ap = g.apts[apt], who = LEVELS[s.li].apts[apt];
+        const fx = (r.cx - ap.x) / Math.max(1, ap.x2 - ap.x), fy = (r.cy - ap.y) / Math.max(1, ap.y2 - ap.y);
+        if (!s.ev.some(x => x.t === 'apt' && x.apt === apt)){ G.scene = { who, t0: now, from: { x: r.x, y: r.y, w: r.w, h: r.h }, fx, fy, full: false }; log('fx.start', 'scene', who); }
+        addFx({ kind: 'spark', dur: 600, x: r.cx, y: r.cy, n: 10, r: 26, seed: e.k });
+      }
+    }
+    else if (e.t === 'reveal'){ G.revealAt[e.k] = now + 120; Audio.light(); addFx({ kind: 'spark', dur: 700, t0: now + 120, x: g.rects[e.k] ? g.rects[e.k].cx : 0, y: g.rects[e.k] ? g.rects[e.k].cy : 0, n: 8, r: 20, seed: e.k * 3 }); }
+    else if (e.t === 'apt'){
+      const who = LEVELS[s.li].apts[e.apt], ap = g.apts[e.apt];
+      G.scene = { who, t0: now, from: { x: ap.x, y: ap.y, w: ap.x2 - ap.x, h: ap.y2 - ap.y }, fx: 0.5, fy: 0.45, full: true };
+      log('fx.start', 'movein', who); log('event', 'movein', who);
+      setTimeout(() => Audio.movein(), 120);
+    }
+    else if (e.t === 'draw'){
+      const d = g.deck;
+      G.fly = { prev: prevCur, t1: now + CFG.DRAW_MS };
+      addFx({ kind: 'deal', dur: CFG.DRAW_MS, id: e.id, x0: d.x, y0: d.y, x1: g.cur.x, y1: g.cur.y, w: g.cur.w, h: g.cur.h });
+      Audio.draw(); log('event', 'draw', 'card=' + RANKS[rankOf(e.id)] + ' broke=' + e.broke + (e.cat ? ' cat' : ''));
+    }
+    else if (e.t === 'wild'){ addFx({ kind: 'fly', dur: CFG.FLY_MS, id: WILD, x0: g.bouquet.x, y0: g.bouquet.y, x1: g.cur.x, y1: g.cur.y, w0: 40, h0: 54, w1: g.cur.w, h1: g.cur.h, rot: 0.2 }); G.fly = { prev: prevCur, t1: now + CFG.FLY_MS }; Audio.bell(1567.98, 0.1, 0.9); log('event', 'wild'); }
+    else if (e.t === 'coffee'){
+      if (e.paid) G.save.coins -= CFG.COFFEE_PRICE;
+      addFx({ kind: 'icon', dur: 900, img: 'coffee', size: 70, x0: VW / 2, y0: H * 0.45, x1: g.deck.x, y1: g.deck.y, label: '+' + e.n });
+      Audio.coffee(); log('event', 'coffee', 'cards=' + e.n + ' paid=' + e.paid); save();
+    }
+    else if (e.t === 'shop.drop'){ /* лампочки на маркизе рисуются из состояния */ }
+    else if (e.t === 'shop.open'){
+      const h = g.houses[e.h]; G.shopAt[e.h] = now; Audio.shop(); log('event', 'shop.open', e.type);
+      const sx = (h.l + h.r) / 2, sy = (g.groundY + g.streetY) / 2;
+      addFx({ kind: 'spark', dur: 900, x: sx, y: sy, n: 16, r: 40, seed: e.h });
+      if (e.type === 'bakery') addFx({ kind: 'icon', dur: 1000, img: null, size: 0, x0: sx, y0: sy, x1: g.deck.x, y1: g.deck.y, label: '+' + CFG.BAKERY_CARDS + ' cards' });
+      else if (e.type === 'florist') addFx({ kind: 'icon', dur: 1000, img: 'bouquet', size: 46, x0: sx, y0: sy, x1: g.bouquet.x, y1: g.bouquet.y });
+      else addFx({ kind: 'icon', dur: 1000, img: null, size: 0, x0: sx, y0: sy, x1: VW - 90, y1: 30, label: '+' + CFG.CAFE_COINS + ' coins' });
+    }
+    else if (e.t === 'cat.jump'){
+      const r = g.rects[e.k] || g.cur; G.catFx = { t0: now, t1: now + CFG.CAT_MS, x0: r.cx, y0: r.cy, x1: g.cur.x + g.cur.w / 2 + 28, y1: g.cur.y + 10 };
+      Audio.meow(); log('event', 'cat.jump');
+    }
+    else if (e.t === 'cat.save'){
+      const r = e.k >= 0 ? g.rects[e.k] : null;
+      if (r) G.catFx = { t0: now, t1: now + CFG.CAT_MS, x0: g.cur.x + 40, y0: g.cur.y, x1: r.cx, y1: r.cy };
+      toast('Pimenta kept your streak'); Audio.meow(); log('event', 'cat.save', 'to=' + e.k);
+    }
+    else if (e.t === 'mico'){ log('event', 'mico', 'to=' + e.k); }
+    else if (e.t === 'garland.bulb'){ Audio.bell(1046.5 * 2 ** (e.got / 6), 0.07, 0.6); }
+    else if (e.t === 'garland.lit'){
+      Audio.garland(); log('event', 'garland.lit');
+      const k = s.garlands[e.g].slots[0], r = g.rects[k] || g.cur;
+      addFx({ kind: 'spark', dur: 1100, x: r.cx, y: r.y, n: 24, r: 60, seed: 9 });
+      addFx({ kind: 'icon', dur: 1000, img: null, size: 0, x0: r.cx, y0: r.y, x1: g.deck.x, y1: g.deck.y, label: '+' + CFG.GARLAND_CARDS + ' cards' });
+    }
+    else if (e.t === 'garland.break'){ toast('The flags went dark: streak broken'); log('event', 'garland.break'); }
+    else if (e.t === 'req.done'){
+      const ap = g.apts[s.req.apt]; Audio.movein(); log('event', 'request.done');
+      addFx({ kind: 'icon', dur: 1100, img: 'letter', size: 44, x0: (ap.x + ap.x2) / 2, y0: ap.y, x1: g.deck.x, y1: g.deck.y, label: '+' + CFG.REQUEST_CARDS + ' cards' });
+      toast(PEOPLE[LEVELS[s.li].apts[s.req.apt]].name + ': thank you!');
+    }
+    else if (e.t === 'req.miss'){ toast('The deck ran out: no gift tonight'); log('event', 'request.miss'); }
+    else if (e.t === 'tram.come'){ G.tramFx = { mode: 'come', t0: now }; setTimeout(() => { if (G.tramFx && G.tramFx.mode === 'come') G.tramFx.mode = 'stay'; }, CFG.TRAM_MS); Audio.tram(); log('event', 'tram.come'); }
+    else if (e.t === 'tram.leave'){ G.tramFx = { mode: 'leave', t0: now }; log('event', 'tram.leave'); }
+    else if (e.t === 'win'){ G.ending = now + CFG.WIN_DELAY_MS; G.endKind = 'win'; log('event', 'level.win', 'moves=' + s.moves + ' draws=' + s.draws + ' coffee=' + s.coffee); setTimeout(() => Audio.win(), 500); addFx({ kind: 'confetti', dur: 2600, seed: s.li, t0: now + 400 }); }
+  }
+  if (m === 'tram' && s.ev.some(e => e.t === 'tram.take')) G.tramFx = { mode: 'leave', t0: now };
+  if (s.lay.line && typeof m === 'number' && s.lay.slots[m].kind === 'line' && s.ev.some(e => e.t === 'play')) G.lineAt = now;
+  if (!G.ending && isStuck(s)){ G.ending = now + CFG.LOSE_DELAY_MS; G.endKind = coffeeAvailable(s) ? 'coffee' : 'lose'; }
+  hud();
+}
+function finishEnding(){
+  const kind = G.endKind; G.ending = 0; G.endKind = '';
+  const s = G.s;
+  if (kind === 'coffee'){ goto('coffee'); return; }
+  if (kind === 'lose'){ Audio.lose(); log('event', 'level.lose', 'left=' + s.left); goto('lose'); return; }
+  // победа: жильцы въехали, монеты в копилку, следующий вечер
+  const ids = Object.values(LEVELS[s.li].apts);
+  const coins = CFG.WIN_COINS + CFG.DECK_COIN * s.deck.length + s.coins;
+  G.save.coins += coins; G.save.done[s.li] = true;
+  for (const id of ids) if (!G.save.people.includes(id)) G.save.people.push(id);
+  G.newPeople = ids;
+  G.save.level = Math.max(G.save.level, s.li + 1); save();
+  log('event', 'reward', 'coins=' + coins + ' people=' + ids.join(','));
+  goto('win', { li: s.li, people: ids, coins, best: s.best });
+  if (G.save.level < LEVELS.length && LEVELS[G.save.level].city !== LEVELS[s.li].city) G.streetCity = LEVELS[s.li].city;
+}
+
+// ---------------------------------------------------------------------------
+// Ввод: Pointer Events, порог тап/драг 10 px, pointercancel = pointerup (§3)
+// ---------------------------------------------------------------------------
+let down = null;
+function toVirtual(e){ const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }; }
+const inRect = (p, r, pad) => r && p.x >= r.x - (pad || 0) && p.x <= r.x + r.w + (pad || 0) && p.y >= r.y - (pad || 0) && p.y <= r.y + r.h + (pad || 0);
+function hitTest(p){
+  const s = G.s, g = geo();
+  if (G.tramCard && inRect(p, G.tramCard, 6)) return 'tram';
+  for (let k = 0; k < s.lay.n; k++) if (s.present[k] && g.rects[k] && inRect(p, g.rects[k], 3)) return k;
+  const d = g.deck; if (inRect(p, { x: d.x - d.w / 2, y: d.y - d.h / 2, w: d.w, h: d.h }, 12)) return 'draw';
+  const b = g.bouquet; if (s.wild && Math.hypot(p.x - b.x, p.y - b.y + 8) < b.r + 8) return 'wild';
+  return null;
+}
+function tapAt(p){
+  if (G.screen !== 'game' || !G.s || G.ending) return;
+  G.lastInput = performance.now(); G.stats.taps++;
+  const h = hitTest(p);
+  log('input', 'tap', (h === null ? 'none' : h) + ' x=' + p.x.toFixed(0) + ' y=' + p.y.toFixed(0));
+  if (h === null) return;
+  const s = G.s;
+  if (typeof h === 'number'){
+    if (!isOpen(s, h)){ G.shake[h] = performance.now(); Audio.wrong(); return; }   // тёмное окно — только дрогнет
+    doMove(h); return;
+  }
+  if (h === 'draw' && !s.deck.length){ toast('The deck is empty'); return; }
+  doMove(h);
+}
+cv.addEventListener('pointerdown', (e) => { touched = true; Audio.init(); down = toVirtual(e); down.id = e.pointerId; down.t = performance.now(); down.sx = G.streetX || 0; try { cv.setPointerCapture(e.pointerId); } catch (err) {} });
+cv.addEventListener('pointermove', (e) => {         // экран улицы: полоса домов едет за пальцем
+  if (!down || e.pointerId !== down.id || G.screen !== 'street') return;
+  G.streetX = down.sx - (toVirtual(e).x - down.x);
+});
+function onUp(e){
+  if (!down || e.pointerId !== down.id) return;
+  const p = toVirtual(e), moved = Math.hypot(p.x - down.x, p.y - down.y) > 10 / scale;
+  const start = { x: down.x, y: down.y }; down = null;
+  if (e.type === 'pointercancel') return;
+  tapAt(moved ? start : p);   // медленный или чуть смазанный тап засчитывается по точке касания (урок не наказывает жест)
+}
+cv.addEventListener('pointerup', onUp); cv.addEventListener('pointercancel', onUp);
+document.addEventListener('keydown', (e) => {          // дубли на клавиатуру для отладки (§3)
+  if (!G.s || G.screen !== 'game') return;
+  if (e.key === ' ' || e.key === 'd') doMove('draw');
+  if (e.key === 'w') doMove('wild');
+  if (e.key === 't') doMove('tram');
+  if (e.key === 'h'){ const k = hintMove(); if (k !== null) doMove(k); }
+  if (e.key === 'r') startLevel(G.s.li, G.s.attempt + 1);
+  if (e.key === 'm') goto('street');
+});
+$('btn-street').onclick = () => { Audio.init(); log('input', 'button', 'street'); G.streetCity = null; goto('street'); };
+$('btn-mute').onclick = () => { Audio.init(); G.save.muted = !G.save.muted; save(); hud(); log('input', 'button', 'mute=' + G.save.muted); };
+
+// --- размер: resize + orientationchange + периодический пересчёт (§2) ---
+function fit(){
+  const r = $('game').getBoundingClientRect(); if (!r.width || !r.height) return;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const nH = r.height / (r.width / VW);
+  if (Math.abs(nH - H) > 0.5 || scale !== r.width / VW) G.geo = null;
+  scale = r.width / VW; W = VW; H = nH;
+  const cw = Math.round(r.width * DPR), ch = Math.round(r.height * DPR);
+  if (cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; }
+}
+let fitTimer = 0;
+const refit = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fit, 140); };
+window.addEventListener('resize', refit); window.addEventListener('orientationchange', refit);
+setInterval(fit, 800);
+document.addEventListener('visibilitychange', () => { G.paused = document.hidden; log('event', G.paused ? 'pause' : 'resume'); });
+
+// --- цикл: rAF + watchdog setInterval; кадр под try/catch с журналом ошибок (урок «обучение зависает») ---
+let lastFrame = 0;
+function safeRender(){ try { render(); Audio.music(); } catch (err) { if (G.errors.length < 20) G.errors.push(String(err && err.stack || err)); console.error(err); } }
+function frame(){ lastFrame = performance.now(); if (!G.paused) safeRender(); requestAnimationFrame(frame); }
+setInterval(() => { if (performance.now() - lastFrame > 120 && !G.paused) safeRender(); }, 40);
+
+// --- дебаг-хук (§6): состояние, любой экран, прогон времени, автоигра, проба касаний ---
+window.WINDOW_LIGHTS = {
+  G, LEVELS, CFG,
+  state(){
+    const s = G.s;
+    return s ? { screen: G.screen, level: s.li + 1, attempt: s.attempt, left: s.left, deck: s.deck.length, cur: s.cur === WILD ? 'wild' : RANKS[rankOf(s.cur)],
+      streak: s.streak, open: exposed(s).length, matches: matches(s), win: isWin(s), stuck: isStuck(s), wild: s.wild, coffee: s.coffee,
+      shops: s.shops.map(o => o.type ? o.type + ':' + (o.open ? 'open' : o.fill) : '-').join(' '), req: s.req ? s.req.state : null,
+      garlands: s.garlands.map(g => g.state), ending: G.endKind, errors: G.errors.length, tut: s.tut ? tutStep() : null }
+      : { screen: G.screen, level: G.save.level + 1, errors: G.errors.length };
+  },
+  play(n, attempt){ startLevel(Math.max(0, Math.min(LEVELS.length, n || 1) - 1), attempt || 0, true); return this.state(); },
+  tap(k){ doMove(k); return this.state(); },
+  draw(){ doMove('draw'); return this.state(); },
+  hint(){ return hintMove(); },
+  goto(screen, payload){ goto(screen, payload); return G.screen; },
+  // точка на экране (CSS px) для окна / колоды — нужна пробе настоящими касаниями
+  point(what){
+    if (!G.s) return null; const g = geo(); let r = null;
+    if (what === 'draw') r = { x: g.deck.x - g.deck.w / 2, y: g.deck.y - g.deck.h / 2, w: g.deck.w, h: g.deck.h };
+    else if (what === 'tram') r = G.tramCard; else if (what === 'wild') r = { x: g.bouquet.x - 25, y: g.bouquet.y - 30, w: 50, h: 50 }; else r = g.rects[what];
+    if (!r) return null; const cr = cv.getBoundingClientRect();
+    return { x: cr.left + (r.x + r.w / 2) * scale, y: cr.top + (r.y + r.h / 2) * scale };
+  },
+  auto(delayMs, kind){              // автоигра ботом ядра (жадный по умолчанию), по ходу с паузой
+    const rnd = mulberry32(5), go = () => {
+      if (!G.s || G.screen !== 'game' || G.ending) return;
+      const s = G.s, m = matches(s); if (tramOpen(s) && fits(s, s.tram.card)) m.push('tram');
+      const mv = m.length ? pick(s, m, kind || 'greedy', rnd) : s.wild ? 'wild' : s.deck.length ? 'draw' : null;
+      if (mv === null) return; doMove(mv); setTimeout(go, delayMs || 250);
+    };
+    go(); return true;
+  },
+  drive(sec){                       // ручной прогон игрового времени: rAF заморожен в скрытой вкладке
+    const end = performance.now() + sec * 1000; let n = 0;
+    while (performance.now() < end && n < 100000){ safeRender(); n++; }
+    return this.state();
+  },
+  finish(){ if (G.ending){ G.ending = performance.now() - 1; safeRender(); } return G.screen; },
+  speed(x){ G.timeScale = x || 1; return G.timeScale; },
+  setSave(o){ Object.assign(G.save, o); save(); hud(); return G.save; },
+  reset(){ try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.hash = ''; location.reload(); },
+};
+
+// --- старт ---
+fit(); hud();
+const startHash = location.hash.slice(1);
+if (startHash) routeHash(startHash);
+else if (G.save.level === 0 && !G.save.done[0]) startLevel(0);   // первый запуск — сразу урок, без меню
+else goto('street');
+requestAnimationFrame(frame);
+log('event', 'boot', 'levels=' + LEVELS.length + ' level=' + (G.save.level + 1));
+</script>
+</body>
+</html>
